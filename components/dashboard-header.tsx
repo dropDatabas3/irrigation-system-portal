@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Droplets, LogOut, Settings, User, BarChart3 } from "lucide-react"
+import { Droplets, LogOut, Settings, User, BarChart3, TestTube } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { logout } from "@/app/actions/auth"
 import {
@@ -26,10 +26,11 @@ export function DashboardHeader() {
     router.push("/dashboard/metrics")
   }
 
-  const handleSettingsClick = () => {
-    console.log("[v0] Settings button clicked")
-    // TODO: Implement settings navigation
+  const handleTestBenchClick = () => {
+    router.push("/dashboard/test-bench")
   }
+
+  // Removed header Settings quick button per UX request
 
   return (
     <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-40">
@@ -60,10 +61,13 @@ export function DashboardHeader() {
             variant="ghost"
             size="icon"
             className="rounded-full relative z-10"
-            onClick={handleSettingsClick}
+            onClick={handleTestBenchClick}
+            title="Banco de pruebas"
           >
-            <Settings className="w-5 h-5" />
+            <TestTube className="w-5 h-5" />
           </Button>
+
+          {/* Settings quick button removed */}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

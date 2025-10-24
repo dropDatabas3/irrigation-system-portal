@@ -28,16 +28,19 @@ export function ValveCard({ valve, onToggle, onClick }: ValveCardProps) {
   const getStatusText = (status: Valve["status"]) => {
     switch (status) {
       case "active":
-        return "Activa"
+        return "Encendida"
       case "inactive":
-        return "Inactiva"
+        return "Apagada"
       default:
-        return "Desactivada"
+        return "Deshabilitada"
     }
   }
 
+  const isLockedOff = valve.status === "off"
+  const offTitle = isLockedOff ? "Deshabilitada por sistema por problemas de hardware" : undefined
+
   return (
-    <Card className="gradient-border hover:shadow-lg transition-shadow relative">
+    <Card className={`gradient-border hover:shadow-lg transition-shadow relative ${isLockedOff ? 'opacity-60' : ''}`} title={offTitle}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
@@ -52,63 +55,106 @@ export function ValveCard({ valve, onToggle, onClick }: ValveCardProps) {
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* Flow Rate and Water Amount */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <TrendingUp className="w-4 h-4 text-primary" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Caudal</p>
-                <p className="text-sm font-semibold text-foreground">{valve.flowRate.toFixed(1)} L/min</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-                <Droplets className="w-4 h-4 text-cyan-500" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Por riego</p>
+        {/* Live run info when active */}
+        {valve.status === 'active' ? (
+          <div className="space-y-3">
+            {/* Liters progress X / Y */}
+            <div className="p-3 rounded-lg bg-secondary/40 border border-secondary/60">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                    <Droplets className="w-4 h-4 text-cyan-500" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Riego en curso</p>
+                </div>
                 <p className="text-sm font-semibold text-foreground">
-                  {valve.waterAmount} {valve.waterUnit}
+                  {((valve.runLiters ?? 0).toFixed(2))} / {((valve.runTargetLiters ?? 0).toFixed(2))} L
                 </p>
               </div>
+              <div className="w-full h-2 rounded-full bg-secondary/70 mt-2 overflow-hidden">
+                {(() => {
+                  const pct = Math.max(0, Math.min(100, ((valve.runLiters ?? 0) / Math.max(0.0001, (valve.runTargetLiters ?? 0))) * 100))
+                  return <div className="h-2 bg-cyan-500 transition-all" style={{ width: pct + '%' }} />
+                })()}
+              </div>
+              {/* Tiempo restante estimado */}
+              <div className="mt-2 text-xs text-muted-foreground flex items-center justify-between">
+                <span>Tiempo restante (estimado)</span>
+                <span className="font-medium text-foreground">
+                  {(() => {
+                    const lph = valve.flowLph ?? 0
+                    const remaining = Math.max(0, (valve.runTargetLiters ?? 0) - (valve.runLiters ?? 0))
+                    if (lph <= 0 || remaining <= 0) return '—'
+                    const sec = Math.ceil(remaining / (lph / 3600))
+                    const m = Math.floor(sec / 60), s = sec % 60
+                    return `${m}m ${s}s`
+                  })()}
+                </span>
+              </div>
             </div>
-          </div>
-        </div>
 
-        {/* Schedule and Last Active */}
-        <div className="space-y-2">
-          {valve.schedule && (
-            <div className="flex items-center gap-2 text-sm">
-              <Clock className="w-4 h-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Programado:</span>
-              <span className="text-foreground font-medium">{valve.schedule}</span>
+            {/* Flow gauge 0..40 L/h */}
+            <div className="p-3 rounded-lg bg-secondary/40 border border-secondary/60">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <TrendingUp className="w-4 h-4 text-primary" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Caudal (L/h)</p>
+                </div>
+                <p className="text-sm font-semibold text-foreground">{((valve.flowLph ?? 0).toFixed(1))} L/h</p>
+              </div>
+              <div className="w-full h-2 rounded-full bg-secondary/70 mt-2 overflow-hidden">
+                {(() => {
+                  const maxLph = 40
+                  const pct = Math.max(0, Math.min(100, ((valve.flowLph ?? 0) / maxLph) * 100))
+                  return <div className="h-2 bg-primary transition-all" style={{ width: pct + '%' }} />
+                })()}
+              </div>
             </div>
-          )}
-          <div className="flex items-center gap-2 text-sm">
-            <Droplets className="w-4 h-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Última activación:</span>
-            <span className="text-foreground">{valve.lastActive}</span>
           </div>
-        </div>
+        ) : (
+          // Inactive: show next schedule and last active
+          <div className="space-y-2">
+            {valve.schedule && (
+              <div className="flex items-center gap-2 text-sm">
+                <Clock className="w-4 h-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Próximo:</span>
+                <span className="text-foreground font-medium">{valve.schedule}</span>
+              </div>
+            )}
+            {valve.nextAtSec && valve.nextAtSec > 0 && (
+              <div className="text-xs text-muted-foreground">
+                {(() => {
+                  const delta = Math.max(0, valve.nextAtSec * 1000 - Date.now())
+                  const h = Math.floor(delta / 3600000)
+                  const m = Math.floor((delta % 3600000) / 60000)
+                  const s = Math.floor((delta % 60000) / 1000)
+                  return `Comienza en ${h}h ${m}m ${s}s`
+                })()}
+              </div>
+            )}
+            <div className="flex items-center gap-2 text-sm">
+              <Droplets className="w-4 h-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Última activación:</span>
+              <span className="text-foreground">{valve.lastActive}</span>
+            </div>
+          </div>
+        )}
 
         {/* Control Switch and Settings Button */}
         <div className="flex items-center justify-between pt-2 border-t border-border gap-3 relative z-10">
           <div className="flex items-center gap-2 flex-1">
-            <span className="text-sm font-medium text-foreground">Control Manual</span>
+            <span className="text-sm font-medium text-foreground">Manual (5s)</span>
             <Switch
               checked={valve.status === "active"}
               onCheckedChange={(checked) => {
                 console.log("[v0] Valve switch toggled:", { valveId: valve.id, checked })
                 onToggle()
               }}
-              disabled={valve.status === "off"}
+              disabled={isLockedOff}
               className="relative z-10"
+              title={offTitle}
             />
           </div>
           <Button
@@ -120,6 +166,8 @@ export function ValveCard({ valve, onToggle, onClick }: ValveCardProps) {
               onClick()
             }}
             className="gap-2 bg-transparent relative z-10"
+            disabled={isLockedOff}
+            title={offTitle}
           >
             <Settings className="w-4 h-4" />
             Ver más

@@ -1,6 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { sendCmd } from "@/lib/api"
+import { toDeviceValve } from "@/lib/valves"
+import { buildJobs } from "@/lib/schedule"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -36,6 +39,12 @@ interface ValveDetailSheetProps {
 export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveDetailSheetProps) {
   const [editedValve, setEditedValve] = useState(valve)
   const [isTesting, setIsTesting] = useState(false)
+  const [metrics, setMetrics] = useState<null | {
+    lastRun: { ts: number; liters: number; durationMs: number } | null
+    seven: { liters: number; durationMs: number; runs: number }
+    thirty: { liters: number; durationMs: number; runs: number }
+  }>(null)
+  const [loadingMetrics, setLoadingMetrics] = useState(false)
 
   const [scheduleMode, setScheduleMode] = useState<"daily" | "weekly" | "interval" | "custom">("daily")
   const [selectedDays, setSelectedDays] = useState<number[]>([1, 3, 5]) // 0=Domingo, 1=Lunes, etc.
@@ -48,19 +57,90 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
   const [customStartDate, setCustomStartDate] = useState("")
   const [customEndDate, setCustomEndDate] = useState("")
 
-  const handleSave = () => {
-    console.log("[v0] Save button clicked, updating valve:", editedValve)
-    onUpdate(editedValve)
-    onOpenChange(false)
+  // Load per-valve metrics
+  const deviceValve = toDeviceValve(valve.id as any)
+  useEffect(() => {
+    let cancelled = false
+    if (!deviceValve) return
+    setLoadingMetrics(true)
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/metrics/valve?valve=${deviceValve}`, { cache: 'no-store' })
+        const json = await res.json()
+        if (!cancelled && json?.ok) {
+          setMetrics({
+            lastRun: json.lastRun || null,
+            seven: json.seven || { liters: 0, durationMs: 0, runs: 0 },
+            thirty: json.thirty || { liters: 0, durationMs: 0, runs: 0 },
+          })
+        }
+      } catch {}
+      if (!cancelled) setLoadingMetrics(false)
+    })()
+    return () => { cancelled = true }
+  }, [deviceValve, open])
+
+  const handleSave = async () => {
+    try {
+      // 1) Update UI state immediately
+      onUpdate(editedValve)
+
+      // 2) Build jobs for this valve from current scheduling controls
+      const liters = editedValve.waterUnit === 'ml' ? Number(editedValve.waterAmount) / 1000 : Number(editedValve.waterAmount)
+      const { jobs } = buildJobs({
+        valveId: editedValve.id as any,
+        liters: liters,
+        mode: scheduleMode,
+        scheduleTimes: scheduleMode === 'daily' ? scheduleTimes : (scheduleMode === 'custom' ? scheduleTimes : undefined),
+        selectedDays: scheduleMode === 'weekly' || scheduleMode === 'custom' ? selectedDays : undefined,
+        weeklyTime: scheduleMode === 'weekly' ? scheduleTime : undefined,
+        intervalDays: scheduleMode === 'interval' ? intervalDays : undefined,
+        intervalHours: scheduleMode === 'interval' ? intervalHours : undefined,
+        startTime: scheduleMode === 'interval' ? scheduleTime : undefined,
+        horizonDays: 7,
+      })
+
+      // 3) Merge with existing config so we don't wipe other valves' schedules
+      let baseJobs: any[] = []
+      try {
+        const res = await fetch('/api/config', { method: 'GET' })
+        if (res.ok) {
+          const data = await res.json()
+          const cfg = data?.config
+          const arr = Array.isArray(cfg?.jobs) ? cfg.jobs : []
+          // keep jobs for other valves only
+          baseJobs = arr.filter((j: any) => Number(j?.valve) !== toDeviceValve(editedValve.id as any))
+        }
+      } catch {}
+
+      const merged = [...baseJobs, ...jobs]
+      merged.sort((a: any, b: any) => (a?.at || 0) - (b?.at || 0))
+
+      // 4) Send config/set with merged jobs
+      if (merged.length > 0) {
+        await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jobs: merged }),
+        })
+      }
+
+      onOpenChange(false)
+    } catch (e) {
+      console.error('save valve config failed', e)
+    }
   }
 
-  const handleTest = () => {
-    console.log("[v0] Test button clicked for valve:", valve.id)
+  const handleTest = async () => {
     setIsTesting(true)
-    setTimeout(() => {
-      console.log("[v0] Test completed for valve:", valve.id)
-      setIsTesting(false)
-    }, 3000)
+    try {
+      const devValve = toDeviceValve(valve.id as any)
+      if (devValve) await sendCmd({ action: "openMs", valve: devValve, ms: 3000 })
+    } catch (e) {
+      console.error("Valve test failed", e)
+    } finally {
+      setTimeout(() => setIsTesting(false), 3000)
+    }
   }
 
   const getStatusColor = (status: Valve["status"]) => {
@@ -86,7 +166,7 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
   }
 
   const toggleDay = (day: number) => {
-    setSelectedDays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort()))
+    setSelectedDays((prev: number[]) => (prev.includes(day) ? prev.filter((d: number) => d !== day) : [...prev, day].sort()))
   }
 
   const addScheduleTime = () => {
@@ -96,7 +176,7 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
   }
 
   const removeScheduleTime = (index: number) => {
-    setScheduleTimes(scheduleTimes.filter((_, i) => i !== index))
+    setScheduleTimes(scheduleTimes.filter((_, i: number) => i !== index))
   }
 
   const updateScheduleTime = (index: number, value: string) => {
@@ -148,7 +228,7 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
                     <SelectTrigger className="relative z-10">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="z-[100]">
+                    <SelectContent className="z-100">
                       <SelectItem value="week">Última Semana</SelectItem>
                       <SelectItem value="month">Último Mes</SelectItem>
                       <SelectItem value="year">Último Año</SelectItem>
@@ -165,7 +245,7 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
                         id="start-date"
                         type="date"
                         value={customStartDate}
-                        onChange={(e) => setCustomStartDate(e.target.value)}
+                        onChange={(e: any) => setCustomStartDate(e.target.value)}
                         className="relative z-10"
                       />
                     </div>
@@ -175,7 +255,7 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
                         id="end-date"
                         type="date"
                         value={customEndDate}
-                        onChange={(e) => setCustomEndDate(e.target.value)}
+                        onChange={(e: any) => setCustomEndDate(e.target.value)}
                         className="relative z-10"
                       />
                     </div>
@@ -196,6 +276,9 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Caudal Actual</p>
                   <p className="text-2xl font-bold text-foreground">{valve.flowRate.toFixed(1)} L/min</p>
+                  {typeof (editedValve as any)?.flowLph === 'number' && (
+                    <p className="text-xs text-muted-foreground">{(editedValve as any).flowLph.toFixed(1)} L/h</p>
+                  )}
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Última Activación</p>
@@ -215,14 +298,14 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 rounded-lg bg-secondary/50">
-                    <p className="text-xs text-muted-foreground mb-1">Total Usado</p>
-                    <p className="text-xl font-bold text-foreground">{valve.totalWaterUsed} L</p>
+                    <p className="text-xs text-muted-foreground mb-1">Últimos 7 días</p>
+                    <p className="text-xl font-bold text-foreground">{loadingMetrics ? '—' : `${(metrics?.seven.liters ?? 0).toFixed(2)} L`}</p>
+                    <p className="text-xs text-muted-foreground">{loadingMetrics ? '' : `${metrics?.seven.runs ?? 0} riegos`}</p>
                   </div>
                   <div className="p-4 rounded-lg bg-secondary/50">
-                    <p className="text-xs text-muted-foreground mb-1">Por Riego</p>
-                    <p className="text-xl font-bold text-foreground">
-                      {valve.waterAmount} {valve.waterUnit}
-                    </p>
+                    <p className="text-xs text-muted-foreground mb-1">Últimos 30 días</p>
+                    <p className="text-xl font-bold text-foreground">{loadingMetrics ? '—' : `${(metrics?.thirty.liters ?? 0).toFixed(2)} L`}</p>
+                    <p className="text-xs text-muted-foreground">{loadingMetrics ? '' : `${metrics?.thirty.runs ?? 0} riegos`}</p>
                   </div>
                 </div>
 
@@ -233,44 +316,12 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
                       <span className="text-sm font-medium text-foreground">Último Riego</span>
                     </div>
                     <span className="text-2xl font-bold text-primary">
-                      {valve.waterAmount} {valve.waterUnit}
+                      {loadingMetrics ? '—' : `${(metrics?.lastRun?.liters ?? 0).toFixed(2)} L`}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">Realizado: {valve.lastActive}</p>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Promedio por día</span>
-                    </div>
-                    <span className="text-sm font-semibold text-foreground">{valve.averagePerDay} L</span>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Promedio por semana</span>
-                    </div>
-                    <span className="text-sm font-semibold text-foreground">{valve.averagePerWeek} L</span>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Promedio por mes</span>
-                    </div>
-                    <span className="text-sm font-semibold text-foreground">{valve.averagePerMonth} L</span>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30">
-                    <div className="flex items-center gap-2">
-                      <Droplets className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Promedio por riego</span>
-                    </div>
-                    <span className="text-sm font-semibold text-foreground">{valve.averagePerIrrigation} L</span>
-                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Realizado: {loadingMetrics ? '—' : (metrics?.lastRun?.ts ? new Date(metrics.lastRun.ts).toLocaleString() : '—')}
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -360,7 +411,7 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
                     <SelectTrigger id="valve-status" className="relative z-10">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="z-[100]">
+                    <SelectContent className="z-100">
                       <SelectItem value="active">Activa</SelectItem>
                       <SelectItem value="inactive">Inactiva</SelectItem>
                       <SelectItem value="off">Desactivada</SelectItem>
@@ -388,7 +439,7 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
                     <SelectTrigger className="relative z-10">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="z-[100]">
+                    <SelectContent className="z-100">
                       <SelectItem value="L">Litros (L)</SelectItem>
                       <SelectItem value="ml">Mililitros (ml)</SelectItem>
                     </SelectContent>
@@ -432,7 +483,7 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
                     <SelectTrigger className="relative z-10">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="z-[100]">
+                    <SelectContent className="z-100">
                       <SelectItem value="daily">Diario</SelectItem>
                       <SelectItem value="weekly">Semanal (Días Específicos)</SelectItem>
                       <SelectItem value="interval">Por Intervalo</SelectItem>

@@ -5,11 +5,12 @@
 
 :root {
   /* Updated theme to dark with cyan/turquoise tones and gradients */
-  --background: oklch(0.12 0.02 240);
+  /* Slightly lighter background for better contrast and soft shadows */
+  --background: oklch(0.14 0.02 240);
   --foreground: oklch(0.95 0.01 240);
-  --card: oklch(0.16 0.025 240);
+  --card: oklch(0.18 0.025 240);
   --card-foreground: oklch(0.95 0.01 240);
-  --popover: oklch(0.14 0.02 240);
+  --popover: oklch(0.16 0.02 240);
   --popover-foreground: oklch(0.95 0.01 240);
   --primary: oklch(0.65 0.15 195);
   --primary-foreground: oklch(0.98 0.01 240);
@@ -46,11 +47,11 @@
 }
 
 .dark {
-  --background: oklch(0.12 0.02 240);
+  --background: oklch(0.14 0.02 240);
   --foreground: oklch(0.95 0.01 240);
-  --card: oklch(0.16 0.025 240);
+  --card: oklch(0.18 0.025 240);
   --card-foreground: oklch(0.95 0.01 240);
-  --popover: oklch(0.14 0.02 240);
+  --popover: oklch(0.16 0.02 240);
   --popover-foreground: oklch(0.95 0.01 240);
   --primary: oklch(0.65 0.15 195);
   --primary-foreground: oklch(0.98 0.01 240);
@@ -143,17 +144,31 @@
   .gradient-border {
     position: relative;
     background: var(--card);
+    /* Subtle depth */
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35), 0 1px 0 rgba(255,255,255,0.02) inset;
   }
 
   .gradient-border::before {
     content: "";
     position: absolute;
     inset: 0;
+    pointer-events: none;
     border-radius: inherit;
     padding: 1px;
     background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
+  }
+
+  /* Inner soft highlight for a subtle 3D feel */
+  .gradient-border::after {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    pointer-events: none;
+    border-radius: inherit;
+    background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.00) 35%);
   }
 }

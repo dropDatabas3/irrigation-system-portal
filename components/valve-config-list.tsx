@@ -10,10 +10,15 @@ export interface ValveConfig {
   name: string
   zone: string
   enabled: boolean
+  lockedDisabled?: boolean
+  disabledReason?: string
   schedule: {
+    mode: 'daily' | 'weekly' | 'interval' | 'custom'
     days: string[]
-    startTime: string
-    duration: number
+    times?: string[]
+    startTime?: string
+    intervalDays?: number
+    intervalHours?: number
   }
   flowRate: {
     min: number
@@ -35,9 +40,9 @@ export function ValveConfigList() {
       zone: "Jardín Frontal",
       enabled: true,
       schedule: {
-        days: ["Lun", "Mié", "Vie"],
-        startTime: "06:00",
-        duration: 30,
+        mode: 'daily',
+        days: ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
+        times: ["06:00"],
       },
       flowRate: {
         min: 8,
@@ -56,9 +61,9 @@ export function ValveConfigList() {
       zone: "Jardín Trasero",
       enabled: true,
       schedule: {
+        mode: 'weekly',
         days: ["Lun", "Mié", "Vie", "Dom"],
         startTime: "06:00",
-        duration: 45,
       },
       flowRate: {
         min: 10,
@@ -77,9 +82,11 @@ export function ValveConfigList() {
       zone: "Huerto",
       enabled: true,
       schedule: {
-        days: ["Mar", "Jue", "Sáb"],
+        mode: 'interval',
+        days: [],
+        intervalDays: 2,
+        intervalHours: 0,
         startTime: "18:00",
-        duration: 30,
       },
       flowRate: {
         min: 5,
@@ -95,63 +102,23 @@ export function ValveConfigList() {
     {
       id: "v4",
       name: "Válvula 4",
-      zone: "Césped Principal",
-      enabled: true,
-      schedule: {
-        days: ["Lun", "Mié", "Vie", "Dom"],
-        startTime: "18:00",
-        duration: 60,
-      },
-      flowRate: {
-        min: 12,
-        max: 25,
-        target: 18,
-      },
-      sensors: {
-        moisture: true,
-        temperature: true,
-        rain: true,
-      },
-    },
-    {
-      id: "v5",
-      name: "Válvula 5",
-      zone: "Macetas",
-      enabled: true,
-      schedule: {
-        days: ["Lun", "Mié", "Vie", "Dom"],
-        startTime: "07:00",
-        duration: 15,
-      },
-      flowRate: {
-        min: 3,
-        max: 8,
-        target: 5,
-      },
-      sensors: {
-        moisture: true,
-        temperature: false,
-        rain: false,
-      },
-    },
-    {
-      id: "v6",
-      name: "Válvula 6",
-      zone: "Invernadero",
+      zone: "Reservada",
       enabled: false,
+      lockedDisabled: true,
+      disabledReason: "Deshabilitada por sistema por problemas de hardware",
       schedule: {
-        days: ["Lun", "Mar", "Mié", "Jue", "Vie"],
-        startTime: "08:00",
-        duration: 30,
+        mode: 'weekly',
+        days: ["Lun", "Mié", "Vie"],
+        startTime: "18:00",
       },
       flowRate: {
-        min: 6,
+        min: 8,
         max: 15,
         target: 10,
       },
       sensors: {
-        moisture: true,
-        temperature: true,
+        moisture: false,
+        temperature: false,
         rain: false,
       },
     },
@@ -166,12 +133,9 @@ export function ValveConfigList() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-foreground">Configuración de Válvulas</h2>
-          <p className="text-sm text-muted-foreground mt-1">Configura horarios, caudales y sensores para cada zona</p>
+          <p className="text-sm text-muted-foreground mt-1">Configura horarios, caudales y sensores para cada zona. El sistema admite 4 válvulas; la V4 se encuentra deshabilitada por hardware.</p>
         </div>
-        <Button variant="outline" className="gap-2 bg-transparent">
-          <Plus className="w-4 h-4" />
-          Agregar Válvula
-        </Button>
+        <div className="text-xs text-muted-foreground">Total: 4 válvulas</div>
       </div>
 
       <div className="space-y-4">

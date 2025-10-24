@@ -2,6 +2,8 @@ import { DashboardHeader } from "@/components/dashboard-header"
 import { ValveGrid } from "@/components/valve-grid"
 import { SystemStatus } from "@/components/system-status"
 import { QuickActions } from "@/components/quick-actions"
+import { NextRuns } from "@/components/next-runs"
+import { DashboardConfigSummary } from "@/components/dashboard-config-summary"
 
 export default function DashboardPage() {
   return (
@@ -14,6 +16,12 @@ export default function DashboardPage() {
 
         {/* Quick Actions */}
         <QuickActions />
+
+  {/* Config summary */}
+  <DashboardConfigSummary />
+
+        {/* Upcoming runs */}
+        <NextRuns />
 
         {/* Valve Controls Grid */}
         <ValveGrid />

@@ -3,23 +3,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { useEffect, useMemo, useState } from "react"
 
-const chartData = [
-  { date: "01/12", usage: 120 },
-  { date: "02/12", usage: 135 },
-  { date: "03/12", usage: 145 },
-  { date: "04/12", usage: 128 },
-  { date: "05/12", usage: 142 },
-  { date: "06/12", usage: 155 },
-  { date: "07/12", usage: 138 },
-  { date: "08/12", usage: 148 },
-  { date: "09/12", usage: 152 },
-  { date: "10/12", usage: 145 },
-  { date: "11/12", usage: 158 },
-  { date: "12/12", usage: 162 },
-  { date: "13/12", usage: 149 },
-  { date: "14/12", usage: 155 },
-]
+type HistItem = { ts?: number; payload?: any }
 
 const chartConfig = {
   usage: {
@@ -29,6 +15,35 @@ const chartConfig = {
 }
 
 export function WaterUsageChart() {
+  const [items, setItems] = useState<HistItem[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/history?type=result&limit=500', { cache: 'no-store' })
+        const data = await res.json()
+        if (!cancelled && data?.ok) setItems(Array.isArray(data.items) ? data.items : [])
+      } catch {}
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  const chartData = useMemo(() => {
+    const byDay = new Map<string, number>()
+    for (const it of items) {
+      const ts = Number(it?.ts)
+      if (!Number.isFinite(ts)) continue
+      const d = new Date(ts)
+      const key = d.toLocaleDateString()
+      const liters = Number(it?.payload?.deliveredLiters ?? it?.payload?.liters ?? 0)
+      byDay.set(key, (byDay.get(key) || 0) + (Number.isFinite(liters) ? liters : 0))
+    }
+    const arr = Array.from(byDay.entries()).map(([date, usage]) => ({ date, usage }))
+    arr.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    return arr.slice(-14)
+  }, [items])
+
   return (
     <Card className="gradient-border">
       <CardHeader>

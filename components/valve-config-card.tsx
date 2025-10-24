@@ -6,8 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Slider } from "@/components/ui/slider"
-import { Clock, Droplets, MapPin, Gauge, Thermometer, CloudRain, Droplet } from "lucide-react"
+import { Clock, Droplets, MapPin, Thermometer, CloudRain, Droplet, Plus, X } from "lucide-react"
 import type { ValveConfig } from "@/components/valve-config-list"
 import { useState } from "react"
 
@@ -31,8 +30,11 @@ export function ValveConfigCard({ config, onUpdate }: ValveConfigCardProps) {
     })
   }
 
+  const locked = !!config.lockedDisabled
+  const disabledTitle = locked ? (config.disabledReason || "Deshabilitada por sistema") : undefined
+
   return (
-    <Card className="gradient-border">
+    <Card className={`gradient-border ${locked ? 'opacity-60' : ''}`} title={disabledTitle}>
       <CardHeader className="cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -47,7 +49,7 @@ export function ValveConfigCard({ config, onUpdate }: ValveConfigCardProps) {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
             <Badge
               variant={config.enabled ? "default" : "secondary"}
               className={config.enabled ? "gradient-primary" : ""}
@@ -56,137 +58,197 @@ export function ValveConfigCard({ config, onUpdate }: ValveConfigCardProps) {
             </Badge>
             <Switch
               checked={config.enabled}
-              onCheckedChange={(enabled) => onUpdate({ enabled })}
-              onClick={(e) => e.stopPropagation()}
+              onCheckedChange={(enabled) => !locked && onUpdate({ enabled })}
+              disabled={locked}
+              title={disabledTitle}
             />
           </div>
         </div>
       </CardHeader>
 
       {isExpanded && (
-        <CardContent className="space-y-6 pt-0">
-          {/* Basic Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor={`name-${config.id}`}>Nombre de la Válvula</Label>
-              <Input
-                id={`name-${config.id}`}
-                value={config.name}
-                onChange={(e) => onUpdate({ name: e.target.value })}
-                className="bg-secondary/50"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor={`zone-${config.id}`}>Zona</Label>
-              <Input
-                id={`zone-${config.id}`}
-                value={config.zone}
-                onChange={(e) => onUpdate({ zone: e.target.value })}
-                className="bg-secondary/50"
-              />
-            </div>
-          </div>
-
-          {/* Schedule Configuration */}
+        <CardContent className="space-y-6">
+          {/* Schedule Configuration with Modes */}
           <div className="space-y-4 p-4 rounded-lg bg-secondary/30 border border-border">
             <div className="flex items-center gap-2">
               <Clock className="w-5 h-5 text-primary" />
               <h3 className="font-semibold text-foreground">Programación</h3>
             </div>
 
-            <div className="space-y-3">
-              <div>
-                <Label className="text-sm mb-2 block">Días de la Semana</Label>
+            {/* Mode selector */}
+            <div className="flex flex-wrap gap-2">
+              {([
+                { id: 'daily', label: 'Diario' },
+                { id: 'weekly', label: 'Semanal' },
+                { id: 'interval', label: 'Por intervalo' },
+                { id: 'custom', label: 'Personalizado' }
+              ] as const).map(m => (
+                <Button
+                  key={m.id}
+                  size="sm"
+                  variant={config.schedule.mode === m.id ? 'default' : 'outline'}
+                  className={config.schedule.mode === m.id ? 'gradient-primary' : ''}
+                  onClick={() => !locked && onUpdate({ schedule: { ...config.schedule, mode: m.id } as any })}
+                  disabled={locked}
+                  title={disabledTitle}
+                >
+                  {m.label}
+                </Button>
+              ))}
+            </div>
+
+            {/* Daily: multiple times */}
+            {config.schedule.mode === 'daily' && (
+              <div className="space-y-3 mt-2">
+                <Label className="text-sm">Horarios (por día)</Label>
+                {(config.schedule.times ?? ["08:00"]).map((time, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Input
+                      type="time"
+                      value={time}
+                      onChange={(e) => {
+                        const times = [...(config.schedule.times ?? ["08:00"])];
+                        times[i] = e.target.value;
+                        onUpdate({ schedule: { ...config.schedule, times } as any })
+                      }}
+                      className="bg-secondary/50"
+                      disabled={locked}
+                      title={disabledTitle}
+                    />
+                    {(config.schedule.times ?? []).length > 1 && (
+                      <Button type="button" variant="ghost" size="icon" onClick={() => {
+                        const times = [...(config.schedule.times ?? ["08:00"])];
+                        times.splice(i, 1);
+                        onUpdate({ schedule: { ...config.schedule, times } as any })
+                      }} disabled={locked} title={disabledTitle}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                {((config.schedule.times ?? []).length) < 6 && (
+                  <Button type="button" variant="outline" className="bg-transparent" onClick={() => {
+                    const times = [...(config.schedule.times ?? [])];
+                    times.push("12:00");
+                    onUpdate({ schedule: { ...config.schedule, times } as any })
+                  }} disabled={locked} title={disabledTitle}>
+                    <Plus className="w-4 h-4 mr-2" /> Agregar horario
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {/* Weekly: pick days + one time */}
+            {config.schedule.mode === 'weekly' && (
+              <div className="space-y-3 mt-2">
+                <Label className="text-sm">Días de la semana</Label>
                 <div className="flex flex-wrap gap-2">
-                  {weekDays.map((day) => (
-                    <Button
-                      key={day}
-                      variant={config.schedule.days.includes(day) ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => toggleDay(day)}
-                      className={config.schedule.days.includes(day) ? "gradient-primary" : ""}
-                    >
-                      {day}
+                  {weekDays.map(d => (
+                    <Button key={d} size="sm" variant={config.schedule.days.includes(d) ? 'default' : 'outline'}
+                      className={config.schedule.days.includes(d) ? 'gradient-primary' : ''}
+                      onClick={() => {
+                        if (locked) return;
+                        const selected = config.schedule.days.includes(d)
+                          ? config.schedule.days.filter(x => x !== d)
+                          : [...config.schedule.days, d];
+                        onUpdate({ schedule: { ...config.schedule, days: selected } })
+                      }} disabled={locked} title={disabledTitle}>
+                      {d}
                     </Button>
                   ))}
                 </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Hora</Label>
+                  <Input type="time" value={config.schedule.startTime ?? '08:00'} onChange={(e) => onUpdate({ schedule: { ...config.schedule, startTime: e.target.value } })} className="bg-secondary/50" disabled={locked} title={disabledTitle} />
+                </div>
               </div>
+            )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor={`time-${config.id}`}>Hora de Inicio</Label>
-                  <Input
-                    id={`time-${config.id}`}
-                    type="time"
-                    value={config.schedule.startTime}
-                    onChange={(e) =>
-                      onUpdate({
-                        schedule: { ...config.schedule, startTime: e.target.value },
-                      })
-                    }
-                    className="bg-secondary/50"
-                  />
+            {/* Interval: days/hours + start time */}
+            {config.schedule.mode === 'interval' && (
+              <div className="space-y-3 mt-2">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Días</Label>
+                    <Input type="number" min={0} max={30} value={config.schedule.intervalDays ?? 0} onChange={(e) => onUpdate({ schedule: { ...config.schedule, intervalDays: Number(e.target.value) } as any })} className="bg-secondary/50" disabled={locked} title={disabledTitle} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Horas</Label>
+                    <Input type="number" min={0} max={23} value={config.schedule.intervalHours ?? 0} onChange={(e) => onUpdate({ schedule: { ...config.schedule, intervalHours: Number(e.target.value) } as any })} className="bg-secondary/50" disabled={locked} title={disabledTitle} />
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor={`duration-${config.id}`}>Duración (minutos)</Label>
-                  <Input
-                    id={`duration-${config.id}`}
-                    type="number"
-                    value={config.schedule.duration}
-                    onChange={(e) =>
-                      onUpdate({
-                        schedule: { ...config.schedule, duration: Number.parseInt(e.target.value) },
-                      })
-                    }
-                    className="bg-secondary/50"
-                  />
+                  <Label>Hora de inicio</Label>
+                  <Input type="time" value={config.schedule.startTime ?? '08:00'} onChange={(e) => onUpdate({ schedule: { ...config.schedule, startTime: e.target.value } })} className="bg-secondary/50" disabled={locked} title={disabledTitle} />
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* Custom: days + multiple times */}
+            {config.schedule.mode === 'custom' && (
+              <div className="space-y-3 mt-2">
+                <Label className="text-sm">Días de la semana</Label>
+                <div className="flex flex-wrap gap-2">
+                  {weekDays.map(d => (
+                    <Button key={d} size="sm" variant={config.schedule.days.includes(d) ? 'default' : 'outline'}
+                      className={config.schedule.days.includes(d) ? 'gradient-primary' : ''}
+                      onClick={() => {
+                        if (locked) return;
+                        const selected = config.schedule.days.includes(d)
+                          ? config.schedule.days.filter(x => x !== d)
+                          : [...config.schedule.days, d];
+                        onUpdate({ schedule: { ...config.schedule, days: selected } })
+                      }} disabled={locked} title={disabledTitle}>
+                      {d}
+                    </Button>
+                  ))}
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Horarios</Label>
+                  {(config.schedule.times ?? ["08:00"]).map((time, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <Input type="time" value={time} onChange={(e) => {
+                        const times = [...(config.schedule.times ?? ["08:00"])];
+                        times[i] = e.target.value;
+                        onUpdate({ schedule: { ...config.schedule, times } as any })
+                      }} className="bg-secondary/50" disabled={locked} title={disabledTitle} />
+                      {(config.schedule.times ?? []).length > 1 && (
+                        <Button type="button" variant="ghost" size="icon" onClick={() => {
+                          const times = [...(config.schedule.times ?? ["08:00"])];
+                          times.splice(i, 1);
+                          onUpdate({ schedule: { ...config.schedule, times } as any })
+                        }} disabled={locked} title={disabledTitle}>
+                          <X className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  {((config.schedule.times ?? []).length) < 6 && (
+                    <Button type="button" variant="outline" className="bg-transparent" onClick={() => {
+                      const times = [...(config.schedule.times ?? [])];
+                      times.push("12:00");
+                      onUpdate({ schedule: { ...config.schedule, times } as any })
+                    }} disabled={locked} title={disabledTitle}>
+                      <Plus className="w-4 h-4 mr-2" /> Agregar horario
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Flow Rate Configuration */}
-          <div className="space-y-4 p-4 rounded-lg bg-secondary/30 border border-border">
-            <div className="flex items-center gap-2">
-              <Gauge className="w-5 h-5 text-accent" />
-              <h3 className="font-semibold text-foreground">Caudal de Agua</h3>
-            </div>
+          {/* Flow Rate Configuration removed per requirements */}
 
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Caudal Objetivo</Label>
-                  <span className="text-sm font-semibold text-foreground">{config.flowRate.target} L/min</span>
-                </div>
-                <Slider
-                  value={[config.flowRate.target]}
-                  onValueChange={([target]) =>
-                    onUpdate({
-                      flowRate: { ...config.flowRate, target },
-                    })
-                  }
-                  min={config.flowRate.min}
-                  max={config.flowRate.max}
-                  step={0.5}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Min: {config.flowRate.min} L/min</span>
-                  <span>Max: {config.flowRate.max} L/min</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Sensor Configuration */}
+          {/* Sensor Configuration (disabled - Próximamente) */}
           <div className="space-y-4 p-4 rounded-lg bg-secondary/30 border border-border">
             <div className="flex items-center gap-2">
               <Droplet className="w-5 h-5 text-chart-3" />
               <h3 className="font-semibold text-foreground">Sensores Activos</h3>
+              <Badge variant="secondary">Próximamente</Badge>
             </div>
 
             <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 rounded-lg bg-card">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-card opacity-60">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                     <Droplet className="w-5 h-5 text-primary" />
@@ -198,15 +260,13 @@ export function ValveConfigCard({ config, onUpdate }: ValveConfigCardProps) {
                 </div>
                 <Switch
                   checked={config.sensors.moisture}
-                  onCheckedChange={(moisture) =>
-                    onUpdate({
-                      sensors: { ...config.sensors, moisture },
-                    })
-                  }
+                  onCheckedChange={() => {}}
+                  disabled={true}
+                  title={disabledTitle}
                 />
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-lg bg-card">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-card opacity-60">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-chart-3/10 flex items-center justify-center">
                     <Thermometer className="w-5 h-5 text-chart-3" />
@@ -218,15 +278,13 @@ export function ValveConfigCard({ config, onUpdate }: ValveConfigCardProps) {
                 </div>
                 <Switch
                   checked={config.sensors.temperature}
-                  onCheckedChange={(temperature) =>
-                    onUpdate({
-                      sensors: { ...config.sensors, temperature },
-                    })
-                  }
+                  onCheckedChange={() => {}}
+                  disabled={true}
+                  title={disabledTitle}
                 />
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-lg bg-card">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-card opacity-60">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
                     <CloudRain className="w-5 h-5 text-accent" />
@@ -238,11 +296,9 @@ export function ValveConfigCard({ config, onUpdate }: ValveConfigCardProps) {
                 </div>
                 <Switch
                   checked={config.sensors.rain}
-                  onCheckedChange={(rain) =>
-                    onUpdate({
-                      sensors: { ...config.sensors, rain },
-                    })
-                  }
+                  onCheckedChange={() => {}}
+                  disabled={true}
+                  title={disabledTitle}
                 />
               </div>
             </div>

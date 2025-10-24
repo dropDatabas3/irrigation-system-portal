@@ -1,14 +1,39 @@
 "use client"
 
 import { Card, CardContent } from "@/components/ui/card"
-import { TrendingDown, TrendingUp, Droplets, Clock, Calendar, Zap } from "lucide-react"
+import { TrendingDown, TrendingUp, Droplets, Clock, Calendar } from "lucide-react"
+import { useEffect, useState } from "react"
 
 export function MetricsOverview() {
+  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState<{ totalMonthLiters: number; avgDayLiters: number; totalActiveHours: number } | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/metrics', { cache: 'no-store' })
+        const json = await res.json()
+        if (!cancelled && json?.ok) {
+          setData({
+            totalMonthLiters: Number(json.totalMonthLiters || 0),
+            avgDayLiters: Number(json.avgDayLiters || 0),
+            totalActiveHours: Number(json.totalActiveHours || 0),
+          })
+        }
+      } catch {}
+      if (!cancelled) setLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  const fmt = (n: number, unit: string) => `${n.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${unit}`
+
   const metrics = [
     {
       label: "Consumo Total (Mes)",
-      value: "4,250 L",
-      change: "+12%",
+      value: data ? fmt(data.totalMonthLiters, 'L') : (loading ? '—' : '0 L'),
+      change: "",
       trend: "up" as const,
       icon: Droplets,
       color: "text-primary",
@@ -16,8 +41,8 @@ export function MetricsOverview() {
     },
     {
       label: "Consumo Promedio (Día)",
-      value: "142 L",
-      change: "-5%",
+      value: data ? fmt(data.avgDayLiters, 'L') : (loading ? '—' : '0 L'),
+      change: "",
       trend: "down" as const,
       icon: Calendar,
       color: "text-accent",
@@ -25,21 +50,12 @@ export function MetricsOverview() {
     },
     {
       label: "Tiempo Total Activo",
-      value: "28.5 hrs",
-      change: "+8%",
+      value: data ? fmt(data.totalActiveHours, 'hrs') : (loading ? '—' : '0 hrs'),
+      change: "",
       trend: "up" as const,
       icon: Clock,
       color: "text-chart-3",
       bgColor: "bg-chart-3/10",
-    },
-    {
-      label: "Eficiencia del Sistema",
-      value: "94%",
-      change: "+3%",
-      trend: "up" as const,
-      icon: Zap,
-      color: "text-chart-4",
-      bgColor: "bg-chart-4/10",
     },
   ]
 

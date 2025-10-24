@@ -3,15 +3,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { useEffect, useMemo, useState } from "react"
 
-const chartData = [
-  { valve: "V1", minutes: 180 },
-  { valve: "V2", minutes: 225 },
-  { valve: "V3", minutes: 150 },
-  { valve: "V4", minutes: 300 },
-  { valve: "V5", minutes: 90 },
-  { valve: "V6", minutes: 120 },
-]
+type HistItem = { ts?: number; payload?: any }
 
 const chartConfig = {
   minutes: {
@@ -20,12 +14,43 @@ const chartConfig = {
   },
 }
 
+function valveLabel(n: number) {
+  return `V${n}`
+}
+
 export function ValveActivityChart() {
+  const [items, setItems] = useState<HistItem[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/history?type=result&limit=1000', { cache: 'no-store' })
+        const data = await res.json()
+        if (!cancelled && data?.ok) setItems(Array.isArray(data.items) ? data.items : [])
+      } catch {}
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  const chartData = useMemo(() => {
+    const totals = new Map<number, number>()
+    for (const it of items) {
+      const v = Number(it?.payload?.valve)
+      const durMs = Number(it?.payload?.durationMs)
+      if (!Number.isFinite(v) || !Number.isFinite(durMs)) continue
+      totals.set(v, (totals.get(v) || 0) + durMs)
+    }
+    const arr = Array.from(totals.entries()).map(([valve, durMs]) => ({ valve: valveLabel(valve), minutes: Math.round(durMs / 60000) }))
+    arr.sort((a, b) => a.valve.localeCompare(b.valve))
+    return arr
+  }, [items])
+
   return (
     <Card className="gradient-border">
       <CardHeader>
         <CardTitle className="text-foreground">Actividad por Válvula</CardTitle>
-        <CardDescription>Tiempo activo en los últimos 7 días</CardDescription>
+        <CardDescription>Tiempo activo en los últimos eventos</CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[300px] w-full">
