@@ -3,6 +3,8 @@ import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+const isVercel = !!process.env.VERCEL
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
@@ -24,9 +26,10 @@ const nextConfig = {
         'http://192.168.0.0/16',
         'http://192.168.100.21:3000',
       ],
-  // Silence workspace root inference warning by explicitly setting the tracing root
-  // to the monorepo root (one level up where another lockfile exists).
-  outputFileTracingRoot: path.join(__dirname, '..'),
+  // In local/dev monorepo we may want to widen the tracing root to one level up.
+  // On Vercel, setting this can confuse path resolution and lead to doubled `/vercel/path0/path0`.
+  // Only apply it when NOT building on Vercel.
+  ...(isVercel ? {} : { outputFileTracingRoot: path.join(__dirname, '..') }),
 }
 
 export default nextConfig
