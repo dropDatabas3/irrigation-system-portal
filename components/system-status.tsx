@@ -7,7 +7,7 @@ import { useIrrigationEvents } from "@/lib/useEvents"
 import { useEffect, useState } from "react"
 
 export function SystemStatus() {
-  const { online, lastStatus, activeValvesCount } = useIrrigationEvents()
+  const { online, lastStatus, lastStatusTs, activeValvesCount } = useIrrigationEvents()
   const [dbStatus, setDbStatus] = useState<'checking'|'connected'|'disconnected'>('checking')
   const [dbName, setDbName] = useState<string|undefined>(undefined)
 
@@ -42,6 +42,17 @@ export function SystemStatus() {
     } catch {
       return String(t)
     }
+  })()
+
+  const lastSeen = (() => {
+    if (!lastStatusTs) return null
+    const delta = Math.max(0, Date.now() - lastStatusTs)
+    const s = Math.floor(delta / 1000)
+    if (s < 60) return `hace ${s}s`
+    const m = Math.floor(s / 60)
+    if (m < 60) return `hace ${m}m`
+    const h = Math.floor(m / 60)
+    return `hace ${h}h`
   })()
 
   const timeSkewInfo = (() => {
@@ -102,6 +113,9 @@ export function SystemStatus() {
                   </Badge>
                 )}
               </div>
+              {lastSeen && (
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Última actualización: {lastSeen}</p>
+              )}
             </div>
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-primary/10 flex items-center justify-center">
               <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />

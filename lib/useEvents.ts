@@ -29,6 +29,7 @@ type EventMsg =
 export function useIrrigationEvents() {
   const [online, setOnline] = useState<boolean | null>(null);
   const [lastStatus, setLastStatus] = useState<StatusPayload | null>(null);
+  const [lastStatusTs, setLastStatusTs] = useState<number | null>(null);
   const [lastResult, setLastResult] = useState<ResultPayload | null>(null);
   const [lastConfigAck, setLastConfigAck] = useState<any | null>(null);
   const [events, setEvents] = useState<EventMsg[]>([]);
@@ -48,6 +49,7 @@ export function useIrrigationEvents() {
           setOnline(data.payload?.toLowerCase?.() === 'online');
         } else if (data.type === 'status') {
           setLastStatus(data.payload);
+          setLastStatusTs((data as any).ts || Date.now());
         } else if (data.type === 'result') {
           setLastResult(data.payload);
         } else if (data.type === 'config-ack') {
@@ -79,5 +81,5 @@ export function useIrrigationEvents() {
     return 0;
   }, [online, lastStatus]);
 
-  return { online, lastStatus, lastResult, lastConfigAck, events, activeValvesCount };
+  return { online, lastStatus, lastStatusTs, lastResult, lastConfigAck, events, activeValvesCount };
 }

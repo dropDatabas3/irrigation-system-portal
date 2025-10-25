@@ -1,9 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { ValveConfigCard } from "@/components/valve-config-card"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
+import { toast } from "sonner"
+import { toDeviceValve } from "@/lib/valves"
 
 export interface ValveConfig {
   id: string
@@ -127,6 +129,56 @@ export function ValveConfigList() {
   const updateConfig = (id: string, updates: Partial<ValveConfig>) => {
     setConfigs(configs.map((config) => (config.id === id ? { ...config, ...updates } : config)))
   }
+
+  // Load initial valves config from API to reflect persisted state
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        const res = await fetch('/api/config', { cache: 'no-store' })
+        const json = await res.json()
+        const valves: Array<{ id: number; enabled?: boolean; name?: string; zone?: string }>
+          = Array.isArray(json?.config?.valves) ? json.config.valves : []
+        if (mounted && valves.length) {
+          setConfigs(prev => prev.map(c => {
+            const idNum = toDeviceValve(c.id as any)
+            const v = valves.find(x => x.id === idNum)
+            if (!v) return c
+            // Valve 4: keep lockedDisabled regardless
+            const locked = c.id === 'v4' ? true : !!c.lockedDisabled
+            return {
+              ...c,
+              enabled: v.enabled !== false && !locked,
+              name: v.name ? v.name : c.name,
+              zone: v.zone ? v.zone : c.zone,
+            }
+          }))
+        }
+      } catch {}
+    })()
+    return () => { mounted = false }
+  }, [])
+
+  // Handle save event from header; persist valves list (ids, enabled, name) to Mongo via /api/config
+  useEffect(() => {
+    const onSave = async () => {
+      try {
+        const valves = configs.map(c => ({ id: toDeviceValve(c.id as any), enabled: c.enabled, name: c.name, zone: c.zone }))
+          .filter(v => Number.isFinite(v.id) && v.id >= 1 && v.id <= 8)
+
+        const payload = { valves }
+        const res = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+        const json = await res.json()
+        if (json?.ok) toast.success('Configuración guardada')
+        else toast.error('No se pudo guardar la configuración')
+      } catch (e) {
+        toast.error('Error al guardar la configuración')
+      }
+    }
+    const handler = () => onSave()
+    window.addEventListener('config:save', handler)
+    return () => window.removeEventListener('config:save', handler)
+  }, [configs])
 
   return (
     <div className="space-y-6">

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { Clock, Droplets, MapPin, TrendingUp, Settings } from "lucide-react"
+import { FlowGauge } from "@/components/flow-gauge"
 import type { Valve } from "@/components/valve-grid"
 
 interface ValveCardProps {
@@ -57,7 +58,7 @@ export function ValveCard({ valve, onToggle, onClick }: ValveCardProps) {
       <CardContent className="space-y-4">
         {/* Live run info when active */}
         {valve.status === 'active' ? (
-          <div className="space-y-3">
+          <div className="space-y-3 min-h-[140px]">
             {/* Liters progress X / Y */}
             <div className="p-3 rounded-lg bg-secondary/40 border border-secondary/60">
               <div className="flex items-center justify-between">
@@ -93,29 +94,14 @@ export function ValveCard({ valve, onToggle, onClick }: ValveCardProps) {
               </div>
             </div>
 
-            {/* Flow gauge 0..40 L/h */}
+            {/* Semicircular flow gauge 0..40 L/h */}
             <div className="p-3 rounded-lg bg-secondary/40 border border-secondary/60">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <TrendingUp className="w-4 h-4 text-primary" />
-                  </div>
-                  <p className="text-xs text-muted-foreground">Caudal (L/h)</p>
-                </div>
-                <p className="text-sm font-semibold text-foreground">{((valve.flowLph ?? 0).toFixed(1))} L/h</p>
-              </div>
-              <div className="w-full h-2 rounded-full bg-secondary/70 mt-2 overflow-hidden">
-                {(() => {
-                  const maxLph = 40
-                  const pct = Math.max(0, Math.min(100, ((valve.flowLph ?? 0) / maxLph) * 100))
-                  return <div className="h-2 bg-primary transition-all" style={{ width: pct + '%' }} />
-                })()}
-              </div>
+              <FlowGauge value={valve.flowLph ?? 0} max={40} />
             </div>
           </div>
         ) : (
           // Inactive: show next schedule and last active
-          <div className="space-y-2">
+          <div className="space-y-2 min-h-[140px]">
             {valve.schedule && (
               <div className="flex items-center gap-2 text-sm">
                 <Clock className="w-4 h-4 text-muted-foreground" />

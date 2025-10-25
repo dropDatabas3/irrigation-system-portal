@@ -32,6 +32,7 @@ export interface Valve {
 
 export function ValveGrid() {
   const { lastConfigAck, events, lastStatus } = useIrrigationEvents()
+  const [enabledSet, setEnabledSet] = useState<Set<number>>(new Set([1,2,3]))
   // tick to force periodic re-render for countdowns
   const [tick, setTick] = useState(0)
   useEffect(() => {
@@ -111,6 +112,48 @@ export function ValveGrid() {
 
   const [selectedValve, setSelectedValve] = useState<Valve | null>(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
+
+  // Read enabled valves from last config-ack when available; fallback to API /api/config once
+  useEffect(() => {
+    const apply = (arr: Array<{ id: number; enabled?: boolean }> | null) => {
+      if (!arr || !arr.length) return
+      const s = new Set<number>()
+      for (const v of arr) {
+        // Valve 4 is reserved/disabled at UI level
+        const id = Number(v?.id)
+        if (!Number.isFinite(id) || id === 4) continue
+        const isEnabled = v?.enabled !== false
+        if (isEnabled) s.add(id)
+      }
+      if (s.size) setEnabledSet(s)
+    }
+    try {
+      const arr = Array.isArray((lastConfigAck as any)?.valves) ? (lastConfigAck as any).valves : null
+      if (arr) apply(arr)
+    } catch {}
+  }, [lastConfigAck])
+
+  useEffect(() => {
+    let done = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/config', { cache: 'no-store' })
+        const json = await res.json()
+        const arr = Array.isArray(json?.config?.valves) ? json.config.valves : null
+        if (!done && arr) {
+          const s = new Set<number>()
+          for (const v of arr) {
+            const id = Number(v?.id)
+            if (!Number.isFinite(id) || id === 4) continue
+            const isEnabled = v?.enabled !== false
+            if (isEnabled) s.add(id)
+          }
+          if (s.size) setEnabledSet(s)
+        }
+      } catch {}
+    })()
+    return () => { done = true }
+  }, [])
 
   // Update lastActive timestamp when a result event arrives
   useEffect(() => {
@@ -225,7 +268,10 @@ export function ValveGrid() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
-          {valves.map((valve) => (
+          {valves.filter(v => {
+            const num = v.id === 'v1' ? 1 : v.id === 'v2' ? 2 : v.id === 'v3' ? 3 : 0
+            return enabledSet.has(num)
+          }).map((valve) => (
             <ValveCard
               key={valve.id}
               valve={valve}

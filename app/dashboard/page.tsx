@@ -23,6 +23,9 @@ export default function DashboardPage() {
         {/* Upcoming runs */}
         <NextRuns />
 
+  {/* Liters per day chart */}
+  {/** Chart movido a Métricas */}
+
         {/* Valve Controls Grid */}
         <ValveGrid />
       </main>

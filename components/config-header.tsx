@@ -3,9 +3,23 @@
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Save } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useState } from "react"
 
 export function ConfigHeader() {
   const router = useRouter()
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = () => {
+    if (saving) return
+    setSaving(true)
+    try {
+      const ev = new CustomEvent('config:save')
+      window.dispatchEvent(ev)
+    } finally {
+      // Let the handler in the list manage actual outcome; reset after a short delay
+      setTimeout(() => setSaving(false), 500)
+    }
+  }
 
   return (
     <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
@@ -20,9 +34,9 @@ export function ConfigHeader() {
           </div>
         </div>
 
-        <Button className="gradient-primary">
+        <Button className="gradient-primary" onClick={handleSave} disabled={saving} title="Guardar configuración">
           <Save className="w-4 h-4 mr-2" />
-          Guardar Cambios
+          {saving ? 'Guardando…' : 'Guardar Cambios'}
         </Button>
       </div>
     </header>
