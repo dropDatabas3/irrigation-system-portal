@@ -181,6 +181,44 @@ export function ValveConfigCard({ config, onUpdate }: ValveConfigCardProps) {
                   <Label>Hora de inicio</Label>
                   <Input type="time" value={config.schedule.startTime ?? '08:00'} onChange={(e) => onUpdate({ schedule: { ...config.schedule, startTime: e.target.value } })} className="bg-secondary/50" disabled={locked} title={disabledTitle} />
                 </div>
+                {/* Optional: multiple times per watering day */}
+                <div className="space-y-2">
+                  <Label className="text-sm">Horarios (en día de riego, opcional)</Label>
+                  {(config.schedule.times ?? ["08:00"]).map((time, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <Input
+                        type="time"
+                        value={time}
+                        onChange={(e) => {
+                          const times = [...(config.schedule.times ?? ["08:00"])];
+                          times[i] = e.target.value;
+                          onUpdate({ schedule: { ...config.schedule, times } as any })
+                        }}
+                        className="bg-secondary/50"
+                        disabled={locked}
+                        title={disabledTitle}
+                      />
+                      {(config.schedule.times ?? []).length > 1 && (
+                        <Button type="button" variant="ghost" size="icon" onClick={() => {
+                          const times = [...(config.schedule.times ?? ["08:00"])];
+                          times.splice(i, 1);
+                          onUpdate({ schedule: { ...config.schedule, times } as any })
+                        }} disabled={locked} title={disabledTitle}>
+                          <X className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  {((config.schedule.times ?? []).length) < 6 && (
+                    <Button type="button" variant="outline" className="bg-transparent" onClick={() => {
+                      const times = [...(config.schedule.times ?? [])];
+                      times.push("12:00");
+                      onUpdate({ schedule: { ...config.schedule, times } as any })
+                    }} disabled={locked} title={disabledTitle}>
+                      <Plus className="w-4 h-4 mr-2" /> Agregar horario
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
 

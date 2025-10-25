@@ -91,7 +91,11 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
         valveId: editedValve.id as any,
         liters: liters,
         mode: scheduleMode,
-        scheduleTimes: scheduleMode === 'daily' ? scheduleTimes : (scheduleMode === 'custom' ? scheduleTimes : undefined),
+        scheduleTimes: scheduleMode === 'daily'
+          ? scheduleTimes
+          : (scheduleMode === 'custom'
+            ? scheduleTimes
+            : (scheduleMode === 'interval' ? scheduleTimes : undefined)),
         selectedDays: scheduleMode === 'weekly' || scheduleMode === 'custom' ? selectedDays : undefined,
         weeklyTime: scheduleMode === 'weekly' ? scheduleTime : undefined,
         intervalDays: scheduleMode === 'interval' ? intervalDays : undefined,
@@ -610,6 +614,45 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
                         onChange={(e) => setScheduleTime(e.target.value)}
                         className="relative z-10"
                       />
+                    </div>
+                    {/* Optional: multiple times per watering day */}
+                    <div className="space-y-2">
+                      <Label className="mb-1 block">Horarios (en día de riego, opcional)</Label>
+                      <div className="space-y-3">
+                        {scheduleTimes.map((time, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <Input
+                              type="time"
+                              value={time}
+                              onChange={(e) => updateScheduleTime(index, e.target.value)}
+                              className="relative z-10"
+                            />
+                            {scheduleTimes.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeScheduleTime(index)}
+                                className="relative z-10"
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                        {scheduleTimes.length < 6 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={addScheduleTime}
+                            className="w-full relative z-10 bg-transparent"
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Agregar Horario
+                          </Button>
+                        )}
+                        <p className="text-xs text-muted-foreground">Ejemplo: cada 2 días a las 08:00 y 15:00.</p>
+                      </div>
                     </div>
                   </div>
                 )}

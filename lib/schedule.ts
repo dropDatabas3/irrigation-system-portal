@@ -58,12 +58,38 @@ export function buildJobs(opts: BuildJobsOpts) {
     const hInt = Math.max(0, opts.intervalHours ?? 0)
     const stepMs = (dInt * 24 + hInt) * 3600 * 1000
     if (stepMs <= 0) return { jobs }
-    let at = hhmmToTodayMs(opts.startTime || '08:00', now)
-    if (at <= Date.now()) at += stepMs
-    const until = Date.now() + horizonDays * 24 * 3600 * 1000
-    while (at <= until && jobs.length < 100) {
-      pushJob(jobs, at, opts.valveId, liters)
-      at += stepMs
+
+    const times = (opts.scheduleTimes && opts.scheduleTimes.length > 0) ? opts.scheduleTimes.slice().sort() : null
+
+    if (times && dInt > 0) {
+      // Every N days: on each watering day, schedule all provided times
+      const dayMs = 24 * 3600 * 1000
+      // Anchor day/time: use provided startTime (or first time) on today, then jump by N days
+      const anchorTime = opts.startTime || times[0] || '08:00'
+      let dayCursor = hhmmToTodayMs(anchorTime, now)
+      // Move to the next watering day in the future (by full N-day steps)
+      while (dayCursor <= Date.now()) dayCursor += dInt * dayMs
+
+      const until = Date.now() + horizonDays * dayMs
+      while (dayCursor <= until && jobs.length < 100) {
+        const baseDay = new Date(new Date(dayCursor).getFullYear(), new Date(dayCursor).getMonth(), new Date(dayCursor).getDate())
+        for (const t of times) {
+          let at = hhmmToTodayMs(t, baseDay)
+          if (at <= Date.now()) continue
+          pushJob(jobs, at, opts.valveId, liters)
+          if (jobs.length >= 100) break
+        }
+        dayCursor += dInt * dayMs
+      }
+    } else {
+      // Fallback: single series separated by step (days+hours)
+      let at = hhmmToTodayMs(opts.startTime || '08:00', now)
+      if (at <= Date.now()) at += stepMs
+      const until = Date.now() + horizonDays * 24 * 3600 * 1000
+      while (at <= until && jobs.length < 100) {
+        pushJob(jobs, at, opts.valveId, liters)
+        at += stepMs
+      }
     }
   } else if (opts.mode === 'custom') {
     const days = (opts.selectedDays?.slice() || [1,3,5]).sort()
