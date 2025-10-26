@@ -75,7 +75,7 @@ export function DashboardConfigSummary() {
           <p className="text-sm text-muted-foreground">Sin configuración disponible.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {(data.config.valves ?? [1,2,3,4].map(i=>({id:i} as any))).slice(0,4).map((v: any) => {
+            {(Array.isArray(data.config.valves) ? data.config.valves : []).map((v: any) => {
               const g = grouped.find(x => x.valve === v.id)
               const enabled = v.enabled !== false && v.id !== 4 // v4 reservada
               const title = v.id === 4 ? "Deshabilitada por sistema (hardware)" : enabled ? "Habilitada" : "Deshabilitada"

@@ -34,12 +34,13 @@ export async function GET(request: Request) {
         } catch {}
       };
 
-      // send initial snapshot
+    // send initial snapshot
       const last = getLast(dev);
   if (last.lwt) safeSend({ type: 'lwt', deviceId: dev, payload: last.lwt, ts: Date.now() });
   if (last.status) safeSend({ type: 'status', deviceId: dev, payload: last.status, ts: Date.now() });
   if (last.result) safeSend({ type: 'result', deviceId: dev, payload: last.result, ts: Date.now() });
   if ((last as any).cfgAck) safeSend({ type: 'config-ack', deviceId: dev, payload: (last as any).cfgAck, ts: Date.now() });
+  if ((last as any).info) safeSend({ type: 'info', deviceId: dev, payload: (last as any).info, ts: Date.now() });
 
       const unsub = eventBus.onEvent((evt) => safeSend(evt));
 

@@ -31,6 +31,17 @@ export async function POST(req: Request) {
       payload = { action, valve, ms } as CmdPayload;
     } else if (action === 'alloff') {
       payload = { action };
+    } else if (action === 'chipInfo') {
+      payload = { action } as CmdPayload;
+    } else if (action === 'startAp') {
+      payload = { action } as CmdPayload;
+    } else if (action === 'wifiSet') {
+      const ssid = String(body?.ssid ?? '').trim();
+      const pass = String(body?.pass ?? '').trim();
+      if (!ssid) {
+        return NextResponse.json({ ok: false, error: 'Missing ssid' }, { status: 400 });
+      }
+      payload = { action, ssid, pass } as CmdPayload;
     } else {
       return NextResponse.json({ ok: false, error: 'Unknown action' }, { status: 400 });
     }

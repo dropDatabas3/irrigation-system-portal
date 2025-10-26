@@ -18,7 +18,7 @@ const DEFAULTS = {
 };
 
 let client: MqttClient | null = null;
-const lastByType: Record<string, { status?: any; result?: any; lwt?: string; cfgAck?: any }> = {};
+const lastByType: Record<string, { status?: any; result?: any; lwt?: string; cfgAck?: any; info?: any }> = {};
 
 function getClientId() {
   const rand = Math.random().toString(16).slice(2, 8);
@@ -69,7 +69,7 @@ export function ensureConnected() {
   client.on('connect', () => {
     const dev = DEFAULTS.deviceId;
     const t = topicsForDevice(dev);
-    client!.subscribe([t.status, t.result, t.lwt, t.cfgAck], (err: Error | null) => {
+    client!.subscribe([t.status, t.result, t.lwt, t.cfgAck, (t as any).info].filter(Boolean), (err: Error | null) => {
       if (err) console.error('MQTT subscribe error:', err);
     });
   });
@@ -97,6 +97,10 @@ export function ensureConnected() {
         const data = parseMaybe(msgStr);
         lastByType[dev] = { ...(lastByType[dev] ?? {}), cfgAck: data };
         evt = { type: 'config-ack', deviceId: dev, payload: data, ts } as any;
+      } else if ((t as any).info && topic === (t as any).info) {
+        const data = parseMaybe(msgStr);
+        lastByType[dev] = { ...(lastByType[dev] ?? {}), info: data };
+        evt = { type: 'info', deviceId: dev, payload: data, ts } as DeviceEvent;
       }
 
       if (evt) {

@@ -24,6 +24,7 @@ type EventMsg =
   | { type: 'status'; deviceId: string; payload: StatusPayload; ts: number }
   | { type: 'result'; deviceId: string; payload: ResultPayload; ts: number }
   | { type: 'config-ack'; deviceId: string; payload: any; ts: number }
+  | { type: 'info'; deviceId: string; payload: any; ts: number }
   | { type: 'ping'; ts: number };
 
 export function useIrrigationEvents() {
@@ -33,6 +34,7 @@ export function useIrrigationEvents() {
   const [lastResult, setLastResult] = useState<ResultPayload | null>(null);
   const [lastConfigAck, setLastConfigAck] = useState<any | null>(null);
   const [events, setEvents] = useState<EventMsg[]>([]);
+  const [lastInfo, setLastInfo] = useState<any | null>(null);
   const esRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
@@ -54,6 +56,8 @@ export function useIrrigationEvents() {
           setLastResult(data.payload);
         } else if (data.type === 'config-ack') {
           setLastConfigAck(data.payload);
+        } else if (data.type === 'info') {
+          setLastInfo(data.payload);
         }
       } catch {}
     };
@@ -81,5 +85,5 @@ export function useIrrigationEvents() {
     return 0;
   }, [online, lastStatus]);
 
-  return { online, lastStatus, lastStatusTs, lastResult, lastConfigAck, events, activeValvesCount };
+  return { online, lastStatus, lastStatusTs, lastResult, lastConfigAck, lastInfo, events, activeValvesCount };
 }

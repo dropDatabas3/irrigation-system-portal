@@ -32,7 +32,7 @@ export interface Valve {
 
 export function ValveGrid() {
   const { lastConfigAck, events, lastStatus } = useIrrigationEvents()
-  const [enabledSet, setEnabledSet] = useState<Set<number>>(new Set([1,2,3]))
+  const [enabledSet, setEnabledSet] = useState<Set<number>>(new Set())
   // tick to force periodic re-render for countdowns
   const [tick, setTick] = useState(0)
   useEffect(() => {
@@ -115,17 +115,24 @@ export function ValveGrid() {
 
   // Read enabled valves from last config-ack when available; fallback to API /api/config once
   useEffect(() => {
-    const apply = (arr: Array<{ id: number; enabled?: boolean }> | null) => {
+    const apply = (arr: Array<{ id: number; enabled?: boolean; name?: string; zone?: string }> | null) => {
       if (!arr || !arr.length) return
       const s = new Set<number>()
+      const meta: Record<number, { name?: string; zone?: string }> = {}
       for (const v of arr) {
-        // Valve 4 is reserved/disabled at UI level
         const id = Number(v?.id)
         if (!Number.isFinite(id) || id === 4) continue
-        const isEnabled = v?.enabled !== false
-        if (isEnabled) s.add(id)
+        if (v?.enabled) s.add(id)
+        if (typeof v?.name === 'string' || typeof v?.zone === 'string') meta[id] = { name: v.name, zone: v.zone }
       }
-      if (s.size) setEnabledSet(s)
+      setEnabledSet(s)
+      if (Object.keys(meta).length) {
+        setValves(prev => prev.map(valve => {
+          const dev = valve.id === 'v1' ? 1 : valve.id === 'v2' ? 2 : valve.id === 'v3' ? 3 : 0
+          const m = meta[dev]
+          return m ? { ...valve, name: m.name ?? valve.name, zone: m.zone ?? valve.zone } : valve
+        }))
+      }
     }
     try {
       const arr = Array.isArray((lastConfigAck as any)?.valves) ? (lastConfigAck as any).valves : null
@@ -139,16 +146,24 @@ export function ValveGrid() {
       try {
         const res = await fetch('/api/config', { cache: 'no-store' })
         const json = await res.json()
-        const arr = Array.isArray(json?.config?.valves) ? json.config.valves : null
-        if (!done && arr) {
+        const arr: Array<{ id: number; enabled?: boolean; name?: string; zone?: string }> = Array.isArray(json?.config?.valves) ? json.config.valves : []
+        if (!done && arr.length) {
           const s = new Set<number>()
+          const meta: Record<number, { name?: string; zone?: string }> = {}
           for (const v of arr) {
             const id = Number(v?.id)
             if (!Number.isFinite(id) || id === 4) continue
-            const isEnabled = v?.enabled !== false
-            if (isEnabled) s.add(id)
+            if (v?.enabled) s.add(id)
+            if (typeof v?.name === 'string' || typeof v?.zone === 'string') meta[id] = { name: v.name, zone: v.zone }
           }
-          if (s.size) setEnabledSet(s)
+          setEnabledSet(s)
+          if (Object.keys(meta).length) {
+            setValves(prev => prev.map(valve => {
+              const dev = valve.id === 'v1' ? 1 : valve.id === 'v2' ? 2 : valve.id === 'v3' ? 3 : 0
+              const m = meta[dev]
+              return m ? { ...valve, name: m.name ?? valve.name, zone: m.zone ?? valve.zone } : valve
+            }))
+          }
         }
       } catch {}
     })()

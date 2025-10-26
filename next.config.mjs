@@ -3,7 +3,9 @@ import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-const isVercel = !!process.env.VERCEL
+// Only treat as Vercel when running on the Vercel platform, where VERCEL is set to "1".
+// This avoids local .env values like VERCEL=true from disabling local tracing root tweaks.
+const isVercel = process.env.VERCEL === '1'
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {

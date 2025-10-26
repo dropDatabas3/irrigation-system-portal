@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Power, PowerOff, RefreshCw, Settings } from "lucide-react"
+import { Power, PowerOff, RefreshCw, Settings, Cpu } from "lucide-react"
 import { sendCmd } from "@/lib/api"
 import { SUPPORTED_VALVES, toDeviceValve } from "@/lib/valves"
 import { useRouter } from "next/navigation"
@@ -35,6 +35,10 @@ export function QuickActions() {
 
   const handleConfig = () => {
     router.push("/dashboard/config")
+  }
+
+  const handleChipInfo = () => {
+    router.push("/chip-info")
   }
 
   return (
@@ -90,6 +94,21 @@ export function QuickActions() {
             <Settings className="w-5 h-5" />
             <span className="text-sm font-medium">Configurar</span>
             <span className="text-[10px] opacity-90">Opciones del sistema</span>
+          </Button>
+        </div>
+      </CardContent>
+      <CardContent>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-auto py-4 flex-col gap-1 bg-transparent"
+            onClick={handleChipInfo}
+            title="Ver información del chip"
+          >
+            <Cpu className="w-5 h-5" />
+            <span className="text-sm font-medium">Chip info</span>
+            <span className="text-[10px] opacity-90">Wi‑Fi, FS, memoria</span>
           </Button>
         </div>
       </CardContent>

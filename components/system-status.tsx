@@ -4,12 +4,13 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Activity, Database, Droplets, Power, SignalHigh, Thermometer } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { useIrrigationEvents } from "@/lib/useEvents"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 export function SystemStatus() {
-  const { online, lastStatus, lastStatusTs, activeValvesCount } = useIrrigationEvents()
+  const { online, lastStatus, lastStatusTs, activeValvesCount, lastConfigAck } = useIrrigationEvents()
   const [dbStatus, setDbStatus] = useState<'checking'|'connected'|'disconnected'>('checking')
   const [dbName, setDbName] = useState<string|undefined>(undefined)
+  const [enabledValves, setEnabledValves] = useState<number | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -32,6 +33,32 @@ export function SystemStatus() {
     })()
     return () => { cancelled = true }
   }, [])
+
+  // Compute enabled valves from last config ack, fallback to fetching /api/config once
+  useEffect(() => {
+    const fromAck = Array.isArray((lastConfigAck as any)?.valves)
+      ? ((lastConfigAck as any).valves as Array<{ id: number; enabled?: boolean }>)
+      : null
+    if (fromAck) {
+      const count = fromAck.filter(v => v && v.id && v.enabled).length
+      setEnabledValves(count)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/config', { cache: 'no-store' })
+        const json = await res.json()
+        const arr: Array<{ id: number; enabled?: boolean }> = Array.isArray(json?.config?.valves)
+          ? json.config.valves
+          : []
+        if (!cancelled) setEnabledValves(arr.filter(v => v.enabled).length)
+      } catch {
+        if (!cancelled) setEnabledValves(null)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [lastConfigAck])
   const deviceTime = (() => {
     const t = (lastStatus as any)?.time
     if (!t) return null
@@ -124,16 +151,16 @@ export function SystemStatus() {
         </CardContent>
       </Card>
 
-      {/* Válvulas activas */}
+      {/* Válvulas habilitadas / en riego */}
       <Card className="gradient-border">
         <CardContent className="p-5 sm:p-6">
           <div className="flex items-center justify-between">
             <div className="min-w-0">
-              <p className="text-xs sm:text-sm text-muted-foreground">Válvulas activas</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Estado de válvulas</p>
               <p className="text-xl sm:text-2xl font-bold text-foreground mt-1 sm:mt-2 leading-none">
-                {activeValvesCount} / 4
+                {enabledValves ?? '-'} habilitadas
               </p>
-              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">V4 deshabilitada por hardware</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Regando ahora: {activeValvesCount}</p>
             </div>
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-accent/10 flex items-center justify-center">
               <Droplets className="w-5 h-5 sm:w-6 sm:h-6 text-accent" />

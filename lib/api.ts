@@ -1,7 +1,10 @@
 export type Cmd =
   | { action: 'water'; valve: number; liters: number }
   | { action: 'openMs'; valve: number; ms: number }
-  | { action: 'alloff' };
+  | { action: 'alloff' }
+  | { action: 'chipInfo' }
+  | { action: 'startAp' }
+  | { action: 'wifiSet'; ssid: string; pass: string };
 
 export async function sendCmd(cmd: Cmd, opts: { signal?: AbortSignal } = {}) {
   const res = await fetch('/api/cmd', {

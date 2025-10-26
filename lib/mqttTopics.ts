@@ -12,5 +12,6 @@ export function topicsForDevice(deviceId: string) {
     lwt: `${base}/lwt`,
     cfgSet: `${base}/config/set`,
     cfgAck: `${base}/config/ack`,
+    info: `${base}/info`,
   } as const;
 }

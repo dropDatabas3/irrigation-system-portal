@@ -2,6 +2,8 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
+import PWARegister from "@/components/pwa-register"
+import InstallPrompt from "@/components/install-prompt"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -11,6 +13,16 @@ export const metadata: Metadata = {
   title: "Sistema de Riego Inteligente",
   description: "Portal de configuración y monitoreo de sistema de riego",
   generator: "v0.app",
+  manifest: "/manifest.json",
+  themeColor: "#0f172a",
+  icons: {
+    icon: "/placeholder-logo.png",
+    apple: "/placeholder-logo.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+  },
 }
 
 export default function RootLayout({
@@ -23,6 +35,10 @@ export default function RootLayout({
       <body className={`font-sans antialiased`}>
         {children}
         <Analytics />
+        {/* Register service worker for PWA behavior (client component, only runs on client) */}
+        <PWARegister />
+        {/* Surface native PWA install when available */}
+        <InstallPrompt />
       </body>
     </html>
   )
