@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useIrrigationEvents } from '@/lib/useEvents';
 import { sendCmd, Cmd } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,13 +9,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Wifi, Rss, Server, HardDrive, Cpu, Activity, Settings, Network, Info } from 'lucide-react';
+import { Wifi, Rss, Server, HardDrive, Cpu, Activity, Settings, Network, Info, Copy, Check } from 'lucide-react';
 
 function KeyValue({ label, value }: { label: string; value: any }) {
   return (
-    <div className="grid grid-cols-[140px_1fr] items-center gap-3 py-1 text-sm">
+    <div className="grid grid-cols-[100px_1fr] items-center gap-2 py-1 text-sm">
       <span className="text-muted-foreground whitespace-nowrap">{label}</span>
-      <span className="font-mono text-foreground break-all whitespace-pre-wrap">{value ?? '—'}</span>
+      <span className="font-mono text-foreground break-all whitespace-pre-wrap leading-tight">{value ?? '—'}</span>
     </div>
   );
 }
@@ -28,7 +29,24 @@ function SectionTitle({ icon: Icon, children }: { icon: any; children: React.Rea
   );
 }
 
+function CopyButton({ value, ariaLabel }: { value: string; ariaLabel: string }) {
+  const [ok, setOk] = useState(false)
+  async function onCopy() {
+    try {
+      await navigator.clipboard.writeText(value)
+      setOk(true)
+      setTimeout(() => setOk(false), 1200)
+    } catch {}
+  }
+  return (
+    <Button type="button" variant="outline" size="icon" className="h-7 w-7 bg-transparent" onClick={onCopy} aria-label={ariaLabel} title="Copiar">
+      {ok ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+    </Button>
+  )
+}
+
 export default function ChipInfoPanel() {
+  const router = useRouter();
   const { online, lastInfo } = useIrrigationEvents();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -69,6 +87,7 @@ export default function ChipInfoPanel() {
           </Badge>
           <Button size="sm" variant="outline" className="bg-transparent" disabled={busy} onClick={() => doCmd({ action: 'chipInfo' })}>Actualizar info</Button>
           <Button size="sm" variant="outline" className="bg-transparent" disabled={busy} onClick={() => doCmd({ action: 'startAp' })}>Iniciar portal AP</Button>
+          <Button size="sm" variant="outline" className="bg-transparent" onClick={() => router.back()}>Volver</Button>
         </div>
       </div>
 
@@ -89,156 +108,164 @@ export default function ChipInfoPanel() {
 
       {!!lastInfo && (
         <>
-          {/* Core identity & Wi‑Fi */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <Card className="gradient-border">
-              <CardHeader className="pb-2"><SectionTitle icon={Activity}>Identificación</SectionTitle></CardHeader>
-              <CardContent className="p-4">
-                <KeyValue label="deviceId" value={lastInfo?.deviceId} />
-                <KeyValue label="hostname" value={lastInfo?.hostname} />
-                <div className="flex items-center justify-between py-1 text-sm">
-                  <span className="text-muted-foreground">portalMode</span>
-                  <Badge variant="outline" className="ml-4">{String(lastInfo?.portalMode ?? false)}</Badge>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="gradient-border lg:col-span-2">
-              <CardHeader className="pb-2"><SectionTitle icon={Wifi}>Wi‑Fi</SectionTitle></CardHeader>
-              <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <KeyValue label="Conectado" value={String(lastInfo?.wifi?.connected ?? false)} />
-                <KeyValue label="SSID" value={lastInfo?.wifi?.ssid} />
-                <KeyValue label="IP" value={lastInfo?.wifi?.ip} />
-                <div className="flex items-center justify-between py-1 text-sm">
-                  <span className="text-muted-foreground">RSSI</span>
-                  <div className="flex items-center gap-2 ml-4">
-                    <span className="font-mono text-foreground">{rssiLabel}</span>
-                    <span className="text-muted-foreground">· {signal}</span>
-                    <Rss className="w-4 h-4 text-primary" />
+          {/* Card 1: Estado y Conexión (Identidad, Wi‑Fi, MQTT) */}
+          <Card className="gradient-border">
+            <CardHeader className="pb-3"><CardTitle className="text-base">Estado y Conexión</CardTitle></CardHeader>
+            <CardContent className="p-4 space-y-5">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Identidad + WiFi */}
+                <div className="space-y-3">
+                  <SectionTitle icon={Activity}>Identificación</SectionTitle>
+                  <div className="mt-2 space-y-1">
+                    <KeyValue label="deviceId" value={lastInfo?.deviceId} />
+                    <KeyValue label="hostname" value={lastInfo?.hostname} />
+                    <div className="grid grid-cols-[100px_1fr] items-center gap-2 py-1 text-sm">
+                      <span className="text-muted-foreground">portalMode</span>
+                      <Badge variant="outline">{String(lastInfo?.portalMode ?? false)}</Badge>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* MQTT & FS */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <Card className="gradient-border lg:col-span-2">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <SectionTitle icon={Server}>MQTT</SectionTitle>
-                  <Button size="sm" variant="outline" className="bg-transparent" onClick={() => window.history.back()}>Volver</Button>
-                </div>
-              </CardHeader>
-              <CardContent className="p-4 space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <KeyValue label="Host" value={lastInfo?.mqtt?.host} />
-                  <KeyValue label="Puerto" value={lastInfo?.mqtt?.port} />
-                  <KeyValue label="Base" value={lastInfo?.mqtt?.base} />
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground mb-2">Topics</div>
-                  <div className="rounded border border-border bg-background/50 p-3 max-h-40 overflow-auto">
-                    {lastInfo?.mqtt?.topics && Object.entries(lastInfo.mqtt.topics).map(([k, v]) => (
-                      <div key={k} className="text-xs grid grid-cols-[140px_1fr] items-start gap-3 py-0.5">
-                        <span className="text-muted-foreground whitespace-nowrap">{k}</span>
-                        <span className="font-mono text-foreground break-all">{String(v)}</span>
+                  <div className="pt-3 space-y-1">
+                    <SectionTitle icon={Wifi}>Wi‑Fi</SectionTitle>
+                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <KeyValue label="Conectado" value={String(lastInfo?.wifi?.connected ?? false)} />
+                      <KeyValue label="SSID" value={lastInfo?.wifi?.ssid} />
+                      <KeyValue label="IP" value={lastInfo?.wifi?.ip} />
+                      <div className="grid grid-cols-[100px_1fr] items-center gap-2 py-1 text-sm">
+                        <span className="text-muted-foreground">RSSI</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-foreground">{rssiLabel}</span>
+                          <span className="text-muted-foreground">· {signal}</span>
+                          <Rss className="w-4 h-4 text-primary" />
+                        </div>
                       </div>
-                    ))}
+                    </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
 
-            <Card className="gradient-border">
-              <CardHeader className="pb-2"><SectionTitle icon={HardDrive}>Sistema de archivos</SectionTitle></CardHeader>
-              <CardContent className="p-4">
-                <KeyValue label="Total" value={fs.total} />
-                <KeyValue label="Usado" value={fs.used} />
-                <div className="mt-2 h-2 bg-secondary rounded overflow-hidden">
-                  <div className="h-2 bg-primary rounded" style={{ width: `${fsPct}%` }} />
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">{fsPct}% usado</div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Memory & Flash */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <Card className="gradient-border">
-              <CardHeader className="pb-2"><SectionTitle icon={Cpu}>Memoria</SectionTitle></CardHeader>
-              <CardContent className="p-4">
-                <KeyValue label="heap" value={lastInfo?.mem?.heap} />
-              </CardContent>
-            </Card>
-            <Card className="gradient-border lg:col-span-2">
-              <CardHeader className="pb-2"><SectionTitle icon={HardDrive}>Flash</SectionTitle></CardHeader>
-              <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <KeyValue label="size" value={lastInfo?.flash?.size} />
-                <KeyValue label="sketch" value={lastInfo?.flash?.sketch} />
-                <KeyValue label="freeSketch" value={lastInfo?.flash?.freeSketch} />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Hardware & Calibration */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Card className="gradient-border">
-              <CardHeader className="pb-2"><SectionTitle icon={Network}>Hardware</SectionTitle></CardHeader>
-              <CardContent className="p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">activeLow</span>
-                  <Badge variant="outline">{String(lastInfo?.hw?.activeLow ?? false)}</Badge>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground mb-1">Pines</div>
-                  <div className="text-xs space-y-1">
-                    <div className="flex justify-between"><span className="text-muted-foreground">valves</span><span className="font-mono text-foreground">{(lastInfo?.hw?.pins?.valves ?? []).join(', ')}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">pump</span><span className="font-mono text-foreground">{lastInfo?.hw?.pins?.pump}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">flow</span><span className="font-mono text-foreground">{lastInfo?.hw?.pins?.flow}</span></div>
+                {/* MQTT */}
+                <div className="space-y-3">
+                  <SectionTitle icon={Server}>MQTT</SectionTitle>
+                  <div className="mt-2 space-y-1">
+                    <div className="grid grid-cols-[100px_1fr_auto] items-center gap-2 py-1 text-sm">
+                      <span className="text-muted-foreground">Host</span>
+                      <div className="font-mono text-foreground whitespace-nowrap overflow-x-auto px-2 py-1 rounded bg-secondary/30 border border-border/50">
+                        {lastInfo?.mqtt?.host ?? '—'}
+                      </div>
+                      {lastInfo?.mqtt?.host && <CopyButton value={String(lastInfo.mqtt.host)} ariaLabel="Copiar host" />}
+                    </div>
+                    <KeyValue label="Puerto" value={lastInfo?.mqtt?.port} />
+                    <div className="grid grid-cols-[100px_1fr_auto] items-center gap-2 py-1 text-sm">
+                      <span className="text-muted-foreground">Base</span>
+                      <div className="font-mono text-foreground whitespace-nowrap overflow-x-auto px-2 py-1 rounded bg-secondary/30 border border-border/50">
+                        {lastInfo?.mqtt?.base ?? '—'}
+                      </div>
+                      {lastInfo?.mqtt?.base && <CopyButton value={String(lastInfo.mqtt.base)} ariaLabel="Copiar base" />}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-2">Topics</div>
+                    <div className="rounded border border-border bg-background/50 p-2 max-h-40 overflow-auto space-y-1">
+                      {lastInfo?.mqtt?.topics && Object.entries(lastInfo.mqtt.topics).map(([k, v]) => (
+                        <div key={k} className="grid grid-cols-[120px_1fr_auto] items-center gap-2 text-xs">
+                          <span className="text-muted-foreground whitespace-nowrap">{k}</span>
+                          <div className="font-mono text-foreground whitespace-nowrap overflow-x-auto px-2 py-0.5 rounded bg-secondary/20 border border-border/30">
+                            {String(v)}
+                          </div>
+                          <CopyButton value={String(v)} ariaLabel={`Copiar ${k}`} />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-            <Card className="gradient-border">
-              <CardHeader className="pb-2"><SectionTitle icon={Settings}>Calibración</SectionTitle></CardHeader>
-              <CardContent className="p-4">
-                <KeyValue label="pulsesPerLiter" value={lastInfo?.cal?.pulsesPerLiter} />
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* Build & Wi‑Fi update */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Card className="gradient-border">
-              <CardHeader className="pb-2"><SectionTitle icon={Activity}>Build</SectionTitle></CardHeader>
-              <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <KeyValue label="date" value={lastInfo?.build?.date} />
-                <KeyValue label="time" value={lastInfo?.build?.time} />
-              </CardContent>
-            </Card>
+          {/* Card 2: Sistema (FS, Memoria, Flash, Hardware, Calibración, Build) */}
+          <Card className="gradient-border">
+            <CardHeader className="pb-3"><CardTitle className="text-base">Sistema</CardTitle></CardHeader>
+            <CardContent className="p-4 space-y-5">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* FS + Memoria */}
+                <div className="space-y-3">
+                  <SectionTitle icon={HardDrive}>Sistema de archivos</SectionTitle>
+                  <div className="mt-2 space-y-1">
+                    <KeyValue label="Total" value={fs.total} />
+                    <KeyValue label="Usado" value={fs.used} />
+                    <div className="mt-2 h-2 bg-secondary rounded overflow-hidden">
+                      <div className="h-2 bg-primary rounded" style={{ width: `${fsPct}%` }} />
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">{fsPct}% usado</div>
+                  </div>
+                  <div className="pt-3">
+                    <SectionTitle icon={Cpu}>Memoria</SectionTitle>
+                    <div className="mt-2"><KeyValue label="heap" value={lastInfo?.mem?.heap} /></div>
+                  </div>
+                </div>
 
-            <Card className="gradient-border">
-              <CardHeader className="pb-2"><SectionTitle icon={Wifi}>Cambiar Wi‑Fi</SectionTitle></CardHeader>
-              <CardContent className="p-4">
-                <form onSubmit={onWifiSet} className="space-y-3">
-                  <div className="space-y-1">
-                    <Label>SSID</Label>
-                    <Input placeholder="SSID" value={ssid} onChange={(e) => setSsid(e.target.value)} />
+                {/* Flash + Build */}
+                <div className="space-y-3">
+                  <SectionTitle icon={HardDrive}>Flash</SectionTitle>
+                  <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <KeyValue label="size" value={lastInfo?.flash?.size} />
+                    <KeyValue label="sketch" value={lastInfo?.flash?.sketch} />
+                    <KeyValue label="freeSketch" value={lastInfo?.flash?.freeSketch} />
                   </div>
-                  <div className="space-y-1">
-                    <Label>Contraseña (opcional)</Label>
-                    <Input type="password" placeholder="••••••••" value={pass} onChange={(e) => setPass(e.target.value)} />
+                  <div className="pt-3">
+                    <SectionTitle icon={Activity}>Build</SectionTitle>
+                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <KeyValue label="date" value={lastInfo?.build?.date} />
+                      <KeyValue label="time" value={lastInfo?.build?.time} />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" type="submit" disabled={busy}>Guardar y reiniciar</Button>
-                    <Button size="sm" type="button" variant="outline" className="bg-transparent" disabled={busy} onClick={() => { setSsid(''); setPass(''); setErr(null); }}>Limpiar</Button>
+                </div>
+              </div>
+
+              {/* Hardware + Calibración */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <SectionTitle icon={Network}>Hardware</SectionTitle>
+                  <div className="mt-2 space-y-2">
+                    <div className="grid grid-cols-[100px_1fr] items-center gap-2 py-1 text-sm">
+                      <span className="text-muted-foreground">activeLow</span>
+                      <Badge variant="outline">{String(lastInfo?.hw?.activeLow ?? false)}</Badge>
+                    </div>
+                    <div className="text-xs space-y-1">
+                      <div className="flex justify-between gap-4"><span className="text-muted-foreground">valves</span><span className="font-mono text-foreground">{(lastInfo?.hw?.pins?.valves ?? []).join(', ')}</span></div>
+                      <div className="flex justify-between gap-4"><span className="text-muted-foreground">pump</span><span className="font-mono text-foreground">{lastInfo?.hw?.pins?.pump}</span></div>
+                      <div className="flex justify-between gap-4"><span className="text-muted-foreground">flow</span><span className="font-mono text-foreground">{lastInfo?.hw?.pins?.flow}</span></div>
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">El dispositivo puede tardar unos segundos en reconectar.</div>
-                </form>
-              </CardContent>
-            </Card>
-          </div>
+                </div>
+                <div className="space-y-3">
+                  <SectionTitle icon={Settings}>Calibración</SectionTitle>
+                  <div className="mt-2"><KeyValue label="pulsesPerLiter" value={lastInfo?.cal?.pulsesPerLiter} /></div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Card 3: Cambiar Wi‑Fi */}
+          <Card className="gradient-border">
+            <CardHeader className="pb-2"><SectionTitle icon={Wifi}>Cambiar Wi‑Fi</SectionTitle></CardHeader>
+            <CardContent className="p-4">
+              <form onSubmit={onWifiSet} className="space-y-3">
+                <div className="space-y-1">
+                  <Label>SSID</Label>
+                  <Input placeholder="SSID" value={ssid} onChange={(e) => setSsid(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Contraseña (opcional)</Label>
+                  <Input type="password" placeholder="••••••••" value={pass} onChange={(e) => setPass(e.target.value)} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" type="submit" disabled={busy}>Guardar y reiniciar</Button>
+                  <Button size="sm" type="button" variant="outline" className="bg-transparent" disabled={busy} onClick={() => { setSsid(''); setPass(''); setErr(null); }}>Limpiar</Button>
+                </div>
+                <div className="text-xs text-muted-foreground">El dispositivo puede tardar unos segundos en reconectar.</div>
+              </form>
+            </CardContent>
+          </Card>
         </>
       )}
     </div>

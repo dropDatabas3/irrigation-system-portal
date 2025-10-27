@@ -41,7 +41,8 @@ export function HistoryTable() {
 
   // Pagination
   const [page, setPage] = useState(1)
-  const pageSize = 10
+  const [pageSize, setPageSize] = useState(10)
+  const [q, setQ] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -73,6 +74,18 @@ export function HistoryTable() {
     if (toTs) {
       const to = new Date(toTs).getTime()
       out = out.filter(it => Number(it?.ts) <= to)
+    }
+    if (q.trim()) {
+      const s = q.trim().toLowerCase()
+      out = out.filter((it) => {
+        try {
+          const when = new Date(Number(it?.ts)).toLocaleString().toLowerCase()
+          const type = String(it?.type || '').toLowerCase()
+          const valve = String((it?.payload?.valve ?? '')).toLowerCase()
+          const payloadStr = JSON.stringify(it?.payload || {}).toLowerCase()
+          return when.includes(s) || type.includes(s) || valve.includes(s) || payloadStr.includes(s)
+        } catch { return false }
+      })
     }
     return out
   }, [items, eventType, valveFilter, originFilter, fromTs, toTs])
@@ -174,7 +187,22 @@ export function HistoryTable() {
               <label className="text-xs text-muted-foreground">Hasta</label>
               <Input type="datetime-local" value={toTs} onChange={(e) => { setToTs(e.target.value); setPage(1) }} className="h-8" />
             </div>
-            <Button type="button" variant="outline" className="h-8 bg-transparent" onClick={() => { setEventType('all'); setValveFilter(0); setOriginFilter('all'); setFromTs(''); setToTs(''); setPage(1) }}>Limpiar</Button>
+            <div>
+              <label className="text-xs text-muted-foreground">Buscar</label>
+              <Input placeholder="Texto libre" value={q} onChange={(e) => { setQ(e.target.value); setPage(1) }} className="h-8" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">Por página</label>
+              <Select value={String(pageSize)} onValueChange={(v: string) => { setPageSize(Number(v)); setPage(1) }}>
+                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button type="button" variant="outline" className="h-8 bg-transparent" onClick={() => { setEventType('all'); setValveFilter(0); setOriginFilter('all'); setFromTs(''); setToTs(''); setQ(''); setPage(1) }}>Limpiar</Button>
           </div>
         </div>
 
