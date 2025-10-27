@@ -58,25 +58,25 @@ export function WaterUsageChart() {
 
   return (
     <Card className="gradient-border">
-      <CardHeader>
+      <CardHeader className="px-3 py-3 sm:p-4">
         <CardTitle className="text-foreground">Consumo de Agua</CardTitle>
         <CardDescription>Últimos 14 días</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-3 sm:p-4">
         {error && (
-          <div className="h-[300px] w-full flex items-center justify-center text-sm text-red-400">
+          <div className="h-60 sm:h-72 md:h-[300px] w-full flex items-center justify-center text-sm text-red-400">
             Error: {error}
           </div>
         )}
         {!error && loading && (
-          <div className="h-[300px] w-full flex items-center justify-center text-sm text-muted-foreground">Cargando…</div>
+          <div className="h-60 sm:h-72 md:h-[300px] w-full flex items-center justify-center text-sm text-muted-foreground">Cargando…</div>
         )}
         {!error && !loading && chartData.length === 0 && (
-          <div className="h-[300px] w-full flex items-center justify-center text-sm text-muted-foreground">No hay datos</div>
+          <div className="h-60 sm:h-72 md:h-[300px] w-full flex items-center justify-center text-sm text-muted-foreground">No hay datos</div>
         )}
         {!error && !loading && chartData.length > 0 && (
-          <ChartContainer config={chartConfig} className="h-[300px] w-full">
-            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+          <ChartContainer config={chartConfig} className="h-60 sm:h-72 md:h-[300px] w-full">
+            <AreaChart data={chartData} margin={{ top: 6, right: 6, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="fillUsage" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
@@ -88,13 +88,13 @@ export function WaterUsageChart() {
                 dataKey="date"
                 tickLine={false}
                 axisLine={false}
-                tickMargin={8}
+                tickMargin={6}
                 tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
               />
               <YAxis
                 tickLine={false}
                 axisLine={false}
-                tickMargin={8}
+                tickMargin={6}
                 tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
               />
               <ChartTooltip content={<ChartTooltipContent />} />

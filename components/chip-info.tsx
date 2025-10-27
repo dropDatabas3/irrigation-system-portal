@@ -9,12 +9,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Wifi, Rss, Server, HardDrive, Cpu, Activity, Settings, Network, Info, Copy, Check } from 'lucide-react';
+import { Wifi, Rss, Server, HardDrive, Cpu, Activity, Settings, Network, Info, Copy, Check, ArrowLeft } from 'lucide-react';
 
 function KeyValue({ label, value }: { label: string; value: any }) {
   return (
-    <div className="grid grid-cols-[100px_1fr] items-center gap-2 py-1 text-sm">
-      <span className="text-muted-foreground whitespace-nowrap">{label}</span>
+    <div className="grid grid-cols-[84px_1fr] items-center gap-1 py-0.5 text-sm">
+      <span className="text-muted-foreground whitespace-nowrap pr-1">{label}</span>
       <span className="font-mono text-foreground break-all whitespace-pre-wrap leading-tight">{value ?? '—'}</span>
     </div>
   );
@@ -78,6 +78,9 @@ export default function ChipInfoPanel() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
+          <button type="button" onClick={() => router.back()} className="rounded-full p-1.5 hover:bg-secondary/50" aria-label="Volver">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
           <Info className="w-5 h-5 text-primary" />
           <h1 className="text-2xl font-semibold text-foreground">Información del Dispositivo</h1>
         </div>
@@ -87,7 +90,6 @@ export default function ChipInfoPanel() {
           </Badge>
           <Button size="sm" variant="outline" className="bg-transparent" disabled={busy} onClick={() => doCmd({ action: 'chipInfo' })}>Actualizar info</Button>
           <Button size="sm" variant="outline" className="bg-transparent" disabled={busy} onClick={() => doCmd({ action: 'startAp' })}>Iniciar portal AP</Button>
-          <Button size="sm" variant="outline" className="bg-transparent" onClick={() => router.back()}>Volver</Button>
         </div>
       </div>
 
@@ -112,25 +114,26 @@ export default function ChipInfoPanel() {
           <Card className="gradient-border">
             <CardHeader className="pb-3"><CardTitle className="text-base">Estado y Conexión</CardTitle></CardHeader>
             <CardContent className="p-4 space-y-5">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 divide-y lg:divide-y-0 lg:divide-x lg:divide-border/50">
                 {/* Identidad + WiFi */}
-                <div className="space-y-3">
+                <div className="space-y-2 lg:pr-4">
                   <SectionTitle icon={Activity}>Identificación</SectionTitle>
-                  <div className="mt-2 space-y-1">
+                  <div className="mt-1 space-y-0.5">
                     <KeyValue label="deviceId" value={lastInfo?.deviceId} />
                     <KeyValue label="hostname" value={lastInfo?.hostname} />
-                    <div className="grid grid-cols-[100px_1fr] items-center gap-2 py-1 text-sm">
+                    <div className="grid grid-cols-[84px_1fr] items-center gap-1 py-0.5 text-sm">
                       <span className="text-muted-foreground">portalMode</span>
                       <Badge variant="outline">{String(lastInfo?.portalMode ?? false)}</Badge>
                     </div>
                   </div>
-                  <div className="pt-3 space-y-1">
+                  <div className="border-t border-border/50 my-2" />
+                  <div className="pt-2 space-y-0.5">
                     <SectionTitle icon={Wifi}>Wi‑Fi</SectionTitle>
-                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <KeyValue label="Conectado" value={String(lastInfo?.wifi?.connected ?? false)} />
                       <KeyValue label="SSID" value={lastInfo?.wifi?.ssid} />
                       <KeyValue label="IP" value={lastInfo?.wifi?.ip} />
-                      <div className="grid grid-cols-[100px_1fr] items-center gap-2 py-1 text-sm">
+                      <div className="grid grid-cols-[84px_1fr] items-center gap-1 py-0.5 text-sm">
                         <span className="text-muted-foreground">RSSI</span>
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-foreground">{rssiLabel}</span>
@@ -143,25 +146,26 @@ export default function ChipInfoPanel() {
                 </div>
 
                 {/* MQTT */}
-                <div className="space-y-3">
+                <div className="space-y-2 lg:pl-4">
                   <SectionTitle icon={Server}>MQTT</SectionTitle>
-                  <div className="mt-2 space-y-1">
-                    <div className="grid grid-cols-[100px_1fr_auto] items-center gap-2 py-1 text-sm">
+                  <div className="mt-1 space-y-0.5">
+                    <div className="grid grid-cols-[84px_1fr_auto] items-center gap-1 py-0.5 text-sm">
                       <span className="text-muted-foreground">Host</span>
-                      <div className="font-mono text-foreground whitespace-nowrap overflow-x-auto px-2 py-1 rounded bg-secondary/30 border border-border/50">
+                      <div className="font-mono text-foreground whitespace-nowrap overflow-x-auto px-2 py-0.5 rounded bg-secondary/30 border border-border/50">
                         {lastInfo?.mqtt?.host ?? '—'}
                       </div>
                       {lastInfo?.mqtt?.host && <CopyButton value={String(lastInfo.mqtt.host)} ariaLabel="Copiar host" />}
                     </div>
                     <KeyValue label="Puerto" value={lastInfo?.mqtt?.port} />
-                    <div className="grid grid-cols-[100px_1fr_auto] items-center gap-2 py-1 text-sm">
+                    <div className="grid grid-cols-[84px_1fr_auto] items-center gap-1 py-0.5 text-sm">
                       <span className="text-muted-foreground">Base</span>
-                      <div className="font-mono text-foreground whitespace-nowrap overflow-x-auto px-2 py-1 rounded bg-secondary/30 border border-border/50">
+                      <div className="font-mono text-foreground whitespace-nowrap overflow-x-auto px-2 py-0.5 rounded bg-secondary/30 border border-border/50">
                         {lastInfo?.mqtt?.base ?? '—'}
                       </div>
                       {lastInfo?.mqtt?.base && <CopyButton value={String(lastInfo.mqtt.base)} ariaLabel="Copiar base" />}
                     </div>
                   </div>
+                  <div className="border-t border-border/50 my-2" />
                   <div>
                     <div className="text-sm text-muted-foreground mb-2">Topics</div>
                     <div className="rounded border border-border bg-background/50 p-2 max-h-40 overflow-auto space-y-1">
@@ -185,11 +189,11 @@ export default function ChipInfoPanel() {
           <Card className="gradient-border">
             <CardHeader className="pb-3"><CardTitle className="text-base">Sistema</CardTitle></CardHeader>
             <CardContent className="p-4 space-y-5">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 divide-y lg:divide-y-0 lg:divide-x lg:divide-border/50">
                 {/* FS + Memoria */}
-                <div className="space-y-3">
+                <div className="space-y-2 lg:pr-4">
                   <SectionTitle icon={HardDrive}>Sistema de archivos</SectionTitle>
-                  <div className="mt-2 space-y-1">
+                  <div className="mt-1 space-y-0.5">
                     <KeyValue label="Total" value={fs.total} />
                     <KeyValue label="Usado" value={fs.used} />
                     <div className="mt-2 h-2 bg-secondary rounded overflow-hidden">
@@ -205,9 +209,9 @@ export default function ChipInfoPanel() {
                 </div>
 
                 {/* Flash + Build */}
-                <div className="space-y-3">
+                <div className="space-y-2 lg:pl-4">
                   <SectionTitle icon={HardDrive}>Flash</SectionTitle>
-                  <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="mt-1 grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <KeyValue label="size" value={lastInfo?.flash?.size} />
                     <KeyValue label="sketch" value={lastInfo?.flash?.sketch} />
                     <KeyValue label="freeSketch" value={lastInfo?.flash?.freeSketch} />
@@ -224,11 +228,11 @@ export default function ChipInfoPanel() {
               </div>
 
               {/* Hardware + Calibración */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="space-y-3">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 divide-y lg:divide-y-0 lg:divide-x lg:divide-border/50">
+                <div className="space-y-2 lg:pr-4">
                   <SectionTitle icon={Network}>Hardware</SectionTitle>
                   <div className="mt-2 space-y-2">
-                    <div className="grid grid-cols-[100px_1fr] items-center gap-2 py-1 text-sm">
+                    <div className="grid grid-cols-[84px_1fr] items-center gap-1 py-0.5 text-sm">
                       <span className="text-muted-foreground">activeLow</span>
                       <Badge variant="outline">{String(lastInfo?.hw?.activeLow ?? false)}</Badge>
                     </div>
@@ -246,7 +250,7 @@ export default function ChipInfoPanel() {
                     </div>
                   </div>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-2 lg:pl-4">
                   <SectionTitle icon={Settings}>Calibración</SectionTitle>
                   <div className="mt-2"><KeyValue label="pulsesPerLiter" value={lastInfo?.cal?.pulsesPerLiter} /></div>
                 </div>

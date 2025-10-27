@@ -62,7 +62,7 @@ export function MetricsOverview() {
   ]
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
       {metrics.map((metric, index) => {
         const Icon = metric.icon
   const TrendIcon = metric.trend === "up" ? TrendingUp : TrendingDown
@@ -70,11 +70,11 @@ export function MetricsOverview() {
 
         return (
           <Card key={index} className="gradient-border">
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-5 md:p-6">
               <div className="flex items-start justify-between">
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">{metric.label}</p>
-                  <p className="text-2xl font-bold text-foreground">{metric.value}</p>
+                  <p className="text-xl md:text-2xl font-bold text-foreground">{metric.value}</p>
                   {metric.change && (
                     <div className={`flex items-center gap-1 text-sm ${trendColor}`}>
                       <TrendIcon className="w-4 h-4" />
@@ -82,8 +82,8 @@ export function MetricsOverview() {
                     </div>
                   )}
                 </div>
-                <div className={`w-12 h-12 rounded-xl ${metric.bgColor} flex items-center justify-center`}>
-                  <Icon className={`w-6 h-6 ${metric.color}`} />
+                <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl ${metric.bgColor} flex items-center justify-center`}>
+                  <Icon className={`w-5 h-5 md:w-6 md:h-6 ${metric.color}`} />
                 </div>
               </div>
               {lastUpdated && (

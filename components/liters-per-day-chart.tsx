@@ -79,11 +79,11 @@ export function LitersPerDayChart() {
 
   return (
     <Card className="gradient-border">
-      <CardHeader>
-        <CardTitle className="text-lg">Litros por día</CardTitle>
+      <CardHeader className="px-3 py-3 sm:p-4">
+        <CardTitle className="text-base sm:text-lg">Litros por día</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
           <div className="space-y-1">
             <Label>Rango</Label>
             <Select value={range} onValueChange={(v: any) => setRange(v)}>
@@ -125,9 +125,9 @@ export function LitersPerDayChart() {
           )}
         </div>
 
-        <div className="w-full h-64 md:h-80">
+        <div className="w-full h-56 sm:h-64 md:h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <AreaChart data={data} margin={{ top: 6, right: 6, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="fillL" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.35}/>
@@ -136,7 +136,7 @@ export function LitersPerDayChart() {
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
               <XAxis dataKey="day" tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 12 }} tickLine={false} axisLine={false} />
-              <YAxis tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 12 }} tickLine={false} axisLine={false} width={40} />
+              <YAxis tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 12 }} tickLine={false} axisLine={false} width={36} />
               <Tooltip contentStyle={{ background: 'rgba(20,20,28,0.95)', border: '1px solid rgba(255,255,255,0.1)' }} />
               <Area type="monotone" dataKey="liters" stroke="#06b6d4" fill="url(#fillL)" strokeWidth={2} />
             </AreaChart>
