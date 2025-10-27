@@ -7,6 +7,7 @@ import { useEffect, useState } from "react"
 export function MetricsOverview() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<{ totalMonthLiters: number; avgDayLiters: number; totalActiveHours: number } | null>(null)
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -20,6 +21,7 @@ export function MetricsOverview() {
             avgDayLiters: Number(json.avgDayLiters || 0),
             totalActiveHours: Number(json.totalActiveHours || 0),
           })
+          setLastUpdated(Date.now())
         }
       } catch {}
       if (!cancelled) setLoading(false)
@@ -63,8 +65,8 @@ export function MetricsOverview() {
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {metrics.map((metric, index) => {
         const Icon = metric.icon
-        const TrendIcon = metric.trend === "up" ? TrendingUp : TrendingDown
-        const trendColor = metric.trend === "up" ? "text-chart-4" : "text-accent"
+  const TrendIcon = metric.trend === "up" ? TrendingUp : TrendingDown
+  const trendColor = metric.trend === "up" ? "text-chart-4" : "text-accent"
 
         return (
           <Card key={index} className="gradient-border">
@@ -73,15 +75,20 @@ export function MetricsOverview() {
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">{metric.label}</p>
                   <p className="text-2xl font-bold text-foreground">{metric.value}</p>
-                  <div className={`flex items-center gap-1 text-sm ${trendColor}`}>
-                    <TrendIcon className="w-4 h-4" />
-                    <span>{metric.change}</span>
-                  </div>
+                  {metric.change && (
+                    <div className={`flex items-center gap-1 text-sm ${trendColor}`}>
+                      <TrendIcon className="w-4 h-4" />
+                      <span>{metric.change}</span>
+                    </div>
+                  )}
                 </div>
                 <div className={`w-12 h-12 rounded-xl ${metric.bgColor} flex items-center justify-center`}>
                   <Icon className={`w-6 h-6 ${metric.color}`} />
                 </div>
               </div>
+              {lastUpdated && (
+                <div className="mt-2 text-[10px] text-muted-foreground">Actualizado: {new Date(lastUpdated).toLocaleTimeString()}</div>
+              )}
             </CardContent>
           </Card>
         )

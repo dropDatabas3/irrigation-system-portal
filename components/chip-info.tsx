@@ -197,6 +197,7 @@ export default function ChipInfoPanel() {
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">{fsPct}% usado</div>
                   </div>
+                  <div className="border-t border-border/50 my-2" />
                   <div className="pt-3">
                     <SectionTitle icon={Cpu}>Memoria</SectionTitle>
                     <div className="mt-2"><KeyValue label="heap" value={lastInfo?.mem?.heap} /></div>
@@ -211,6 +212,7 @@ export default function ChipInfoPanel() {
                     <KeyValue label="sketch" value={lastInfo?.flash?.sketch} />
                     <KeyValue label="freeSketch" value={lastInfo?.flash?.freeSketch} />
                   </div>
+                  <div className="border-t border-border/50 my-2" />
                   <div className="pt-3">
                     <SectionTitle icon={Activity}>Build</SectionTitle>
                     <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -231,9 +233,16 @@ export default function ChipInfoPanel() {
                       <Badge variant="outline">{String(lastInfo?.hw?.activeLow ?? false)}</Badge>
                     </div>
                     <div className="text-xs space-y-1">
-                      <div className="flex justify-between gap-4"><span className="text-muted-foreground">valves</span><span className="font-mono text-foreground">{(lastInfo?.hw?.pins?.valves ?? []).join(', ')}</span></div>
-                      <div className="flex justify-between gap-4"><span className="text-muted-foreground">pump</span><span className="font-mono text-foreground">{lastInfo?.hw?.pins?.pump}</span></div>
-                      <div className="flex justify-between gap-4"><span className="text-muted-foreground">flow</span><span className="font-mono text-foreground">{lastInfo?.hw?.pins?.flow}</span></div>
+                      <div className="flex items-start justify-between gap-4">
+                        <span className="text-muted-foreground">valves</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(lastInfo?.hw?.pins?.valves ?? []).map((p: number, i: number) => (
+                            <span key={i} className="rounded border border-border/50 bg-secondary/30 px-1.5 py-0.5 font-mono text-foreground">{`Pin ${p}`}</span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex justify-between gap-4"><span className="text-muted-foreground">pump</span><span className="font-mono text-foreground">{lastInfo?.hw?.pins?.pump != null ? `Pin ${lastInfo?.hw?.pins?.pump}` : '—'}</span></div>
+                      <div className="flex justify-between gap-4"><span className="text-muted-foreground">flow</span><span className="font-mono text-foreground">{lastInfo?.hw?.pins?.flow != null ? `Pin ${lastInfo?.hw?.pins?.flow}` : '—'}</span></div>
                     </div>
                   </div>
                 </div>
