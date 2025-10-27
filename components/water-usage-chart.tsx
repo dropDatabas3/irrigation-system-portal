@@ -16,15 +16,24 @@ const chartConfig = {
 
 export function WaterUsageChart() {
   const [items, setItems] = useState<HistItem[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
+    setLoading(true)
+    setError(null)
     ;(async () => {
       try {
         const res = await fetch('/api/history?type=result&limit=500', { cache: 'no-store' })
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await res.json()
         if (!cancelled && data?.ok) setItems(Array.isArray(data.items) ? data.items : [])
-      } catch {}
+      } catch (e: any) {
+        if (!cancelled) setError(e?.message || 'Error al cargar')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     })()
     return () => { cancelled = true }
   }, [])
@@ -54,32 +63,45 @@ export function WaterUsageChart() {
         <CardDescription>Últimos 14 días</CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[300px] w-full">
-          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id="fillUsage" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-            <XAxis
-              dataKey="date"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-            />
-            <YAxis
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-            />
-            <ChartTooltip content={<ChartTooltipContent />} />
-            <Area type="monotone" dataKey="usage" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#fillUsage)" />
-          </AreaChart>
-        </ChartContainer>
+        {error && (
+          <div className="h-[300px] w-full flex items-center justify-center text-sm text-red-400">
+            Error: {error}
+          </div>
+        )}
+        {!error && loading && (
+          <div className="h-[300px] w-full flex items-center justify-center text-sm text-muted-foreground">Cargando…</div>
+        )}
+        {!error && !loading && chartData.length === 0 && (
+          <div className="h-[300px] w-full flex items-center justify-center text-sm text-muted-foreground">No hay datos</div>
+        )}
+        {!error && !loading && chartData.length > 0 && (
+          <ChartContainer config={chartConfig} className="h-[300px] w-full">
+            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="fillUsage" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+              <XAxis
+                dataKey="date"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+              />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+              />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Area type="monotone" dataKey="usage" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#fillUsage)" />
+            </AreaChart>
+          </ChartContainer>
+        )}
       </CardContent>
     </Card>
   )

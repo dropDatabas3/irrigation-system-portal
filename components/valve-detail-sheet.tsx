@@ -40,13 +40,15 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
   const [editedValve, setEditedValve] = useState(valve)
   const [isTesting, setIsTesting] = useState(false)
   // Control de habilitación separado del estado de ejecución (activa/inactiva)
-  const [enabled, setEnabled] = useState<boolean>(valve.status !== 'off')
+  const [enabled, setEnabled] = useState<boolean>(valve.enabled !== false)
   const [metrics, setMetrics] = useState<null | {
     lastRun: { ts: number; liters: number; durationMs: number } | null
     seven: { liters: number; durationMs: number; runs: number }
     thirty: { liters: number; durationMs: number; runs: number }
   }>(null)
   const [loadingMetrics, setLoadingMetrics] = useState(false)
+  const [hasConfig, setHasConfig] = useState<boolean>(false)
+  const [hasValveJobs, setHasValveJobs] = useState<boolean>(false)
 
   const [scheduleMode, setScheduleMode] = useState<"daily" | "weekly" | "interval" | "custom">("daily")
   const [selectedDays, setSelectedDays] = useState<number[]>([1, 3, 5]) // 0=Domingo, 1=Lunes, etc.
@@ -61,6 +63,12 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
 
   // Load per-valve metrics
   const deviceValve = toDeviceValve(valve.id as any)
+  // Sync local state when valve prop changes or sheet opens
+  useEffect(() => {
+    setEditedValve(valve)
+    setEnabled(valve.enabled !== false)
+  }, [valve, open])
+
   useEffect(() => {
     let cancelled = false
     if (!deviceValve) return
@@ -78,6 +86,28 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
         }
       } catch {}
       if (!cancelled) setLoadingMetrics(false)
+    })()
+    return () => { cancelled = true }
+  }, [deviceValve, open])
+
+  // Detect if there is any saved config and whether this valve has jobs
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/config', { cache: 'no-store' })
+        const json = await res.json()
+        const cfg = json?.config || {}
+        const hasCfg = !!cfg && (Array.isArray(cfg?.valves) || Array.isArray(cfg?.jobs))
+        const jobsArr: any[] = Array.isArray(cfg?.jobs) ? cfg.jobs : []
+        const hasJobsForValve = jobsArr.some(j => Number(j?.valve) === deviceValve)
+        if (!cancelled) {
+          setHasConfig(!!hasCfg)
+          setHasValveJobs(!!hasJobsForValve)
+        }
+      } catch {
+        if (!cancelled) { setHasConfig(false); setHasValveJobs(false) }
+      }
     })()
     return () => { cancelled = true }
   }, [deviceValve, open])
@@ -493,6 +523,7 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
               </CardContent>
             </Card>
 
+            {hasConfig && (
             <Card className="gradient-border">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -501,209 +532,37 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6 relative z-10">
-                {/* Schedule Mode Selection */}
-                <div className="space-y-2">
-                  <Label>Modo de Programación</Label>
-                  <Select value={scheduleMode} onValueChange={(value: any) => setScheduleMode(value)}>
-                    <SelectTrigger className="relative z-10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="z-100">
-                      <SelectItem value="daily">Diario</SelectItem>
-                      <SelectItem value="weekly">Semanal (Días Específicos)</SelectItem>
-                      <SelectItem value="interval">Por Intervalo</SelectItem>
-                      <SelectItem value="custom">Personalizado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Daily Mode */}
-                {scheduleMode === "daily" && (
-                  <div className="space-y-4 p-4 rounded-lg bg-secondary/30">
-                    <p className="text-sm text-muted-foreground">Riego todos los días a las horas especificadas</p>
-                    <div className="space-y-3">
-                      {scheduleTimes.map((time, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <Input
-                            type="time"
-                            value={time}
-                            onChange={(e) => updateScheduleTime(index, e.target.value)}
-                            className="relative z-10"
-                          />
-                          {scheduleTimes.length > 1 && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeScheduleTime(index)}
-                              className="relative z-10"
-                            >
-                              <X className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
-                      ))}
-                      {scheduleTimes.length < 6 && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={addScheduleTime}
-                          className="w-full relative z-10 bg-transparent"
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          Agregar Horario
-                        </Button>
-                      )}
-                    </div>
+                {!hasValveJobs && (
+                  <div className="p-4 rounded-lg bg-secondary/30 border border-border text-sm text-muted-foreground flex items-center justify-between">
+                    <span>No hay una programación guardada para esta válvula.</span>
+                    <Button type="button" variant="outline" className="bg-transparent" onClick={() => setHasValveJobs(true)}>
+                      <Plus className="w-4 h-4 mr-2" /> Agregar programación
+                    </Button>
                   </div>
                 )}
 
-                {/* Weekly Mode */}
-                {scheduleMode === "weekly" && (
-                  <div className="space-y-4 p-4 rounded-lg bg-secondary/30">
-                    <p className="text-sm text-muted-foreground">Selecciona los días de la semana</p>
-                    <div className="grid grid-cols-7 gap-2">
-                      {dayNames.map((day, index) => (
-                        <Button
-                          key={index}
-                          type="button"
-                          variant={selectedDays.includes(index) ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => toggleDay(index)}
-                          className="relative z-10 p-2 h-auto"
-                        >
-                          {day}
-                        </Button>
-                      ))}
-                    </div>
-                    <div className="space-y-2 mt-4">
-                      <Label htmlFor="weekly-time">Hora de Riego</Label>
-                      <Input
-                        id="weekly-time"
-                        type="time"
-                        value={scheduleTime}
-                        onChange={(e) => setScheduleTime(e.target.value)}
-                        className="relative z-10"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Interval Mode */}
-                {scheduleMode === "interval" && (
-                  <div className="space-y-4 p-4 rounded-lg bg-secondary/30">
-                    <p className="text-sm text-muted-foreground">Riego cada cierto intervalo de tiempo</p>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="interval-days">Días</Label>
-                        <Input
-                          id="interval-days"
-                          type="number"
-                          min="0"
-                          max="30"
-                          value={intervalDays}
-                          onChange={(e) => setIntervalDays(Number(e.target.value))}
-                          className="relative z-10"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="interval-hours">Horas</Label>
-                        <Input
-                          id="interval-hours"
-                          type="number"
-                          min="0"
-                          max="23"
-                          value={intervalHours}
-                          onChange={(e) => setIntervalHours(Number(e.target.value))}
-                          className="relative z-10"
-                        />
-                      </div>
-                    </div>
-                    <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
-                      <p className="text-sm font-medium text-foreground">
-                        Frecuencia: Cada {intervalDays > 0 && `${intervalDays} día${intervalDays > 1 ? "s" : ""}`}
-                        {intervalDays > 0 && intervalHours > 0 && " y "}
-                        {intervalHours > 0 && `${intervalHours} hora${intervalHours > 1 ? "s" : ""}`}
-                      </p>
-                    </div>
+                {hasValveJobs && (
+                  <>
+                    {/* Schedule Mode Selection */}
                     <div className="space-y-2">
-                      <Label htmlFor="interval-start-time">Hora de Inicio</Label>
-                      <Input
-                        id="interval-start-time"
-                        type="time"
-                        value={scheduleTime}
-                        onChange={(e) => setScheduleTime(e.target.value)}
-                        className="relative z-10"
-                      />
+                      <Label>Modo de Programación</Label>
+                      <Select value={scheduleMode} onValueChange={(value: any) => setScheduleMode(value)}>
+                        <SelectTrigger className="relative z-10">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="z-100">
+                          <SelectItem value="daily">Diario</SelectItem>
+                          <SelectItem value="weekly">Semanal (Días Específicos)</SelectItem>
+                          <SelectItem value="interval">Por Intervalo</SelectItem>
+                          <SelectItem value="custom">Personalizado</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    {/* Optional: multiple times per watering day */}
-                    <div className="space-y-2">
-                      <Label className="mb-1 block">Horarios (en día de riego, opcional)</Label>
-                      <div className="space-y-3">
-                        {scheduleTimes.map((time, index) => (
-                          <div key={index} className="flex items-center gap-2">
-                            <Input
-                              type="time"
-                              value={time}
-                              onChange={(e) => updateScheduleTime(index, e.target.value)}
-                              className="relative z-10"
-                            />
-                            {scheduleTimes.length > 1 && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removeScheduleTime(index)}
-                                className="relative z-10"
-                              >
-                                <X className="w-4 h-4" />
-                              </Button>
-                            )}
-                          </div>
-                        ))}
-                        {scheduleTimes.length < 6 && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={addScheduleTime}
-                            className="w-full relative z-10 bg-transparent"
-                          >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Agregar Horario
-                          </Button>
-                        )}
-                        <p className="text-xs text-muted-foreground">Ejemplo: cada 2 días a las 08:00 y 15:00.</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
-                {/* Custom Mode */}
-                {scheduleMode === "custom" && (
-                  <div className="space-y-4 p-4 rounded-lg bg-secondary/30">
-                    <p className="text-sm text-muted-foreground">
-                      Configuración avanzada: combina días específicos con múltiples horarios
-                    </p>
-                    <div className="space-y-4">
-                      <div>
-                        <Label className="mb-2 block">Días de la Semana</Label>
-                        <div className="grid grid-cols-7 gap-2">
-                          {dayNames.map((day, index) => (
-                            <Button
-                              key={index}
-                              type="button"
-                              variant={selectedDays.includes(index) ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => toggleDay(index)}
-                              className="relative z-10 p-2 h-auto"
-                            >
-                              {day}
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="mb-2 block">Horarios</Label>
+                    {/* Daily Mode */}
+                    {scheduleMode === "daily" && (
+                      <div className="space-y-4 p-4 rounded-lg bg-secondary/30">
+                        <p className="text-sm text-muted-foreground">Riego todos los días a las horas especificadas</p>
                         <div className="space-y-3">
                           {scheduleTimes.map((time, index) => (
                             <div key={index} className="flex items-center gap-2">
@@ -739,11 +598,197 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
                           )}
                         </div>
                       </div>
-                    </div>
-                  </div>
+                    )}
+
+                    {/* Weekly Mode */}
+                    {scheduleMode === "weekly" && (
+                      <div className="space-y-4 p-4 rounded-lg bg-secondary/30">
+                        <p className="text-sm text-muted-foreground">Selecciona los días de la semana</p>
+                        <div className="grid grid-cols-7 gap-2">
+                          {dayNames.map((day, index) => (
+                            <Button
+                              key={index}
+                              type="button"
+                              variant={selectedDays.includes(index) ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => toggleDay(index)}
+                              className="relative z-10 p-2 h-auto"
+                            >
+                              {day}
+                            </Button>
+                          ))}
+                        </div>
+                        <div className="space-y-2 mt-4">
+                          <Label htmlFor="weekly-time">Hora de Riego</Label>
+                          <Input
+                            id="weekly-time"
+                            type="time"
+                            value={scheduleTime}
+                            onChange={(e) => setScheduleTime(e.target.value)}
+                            className="relative z-10"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Interval Mode */}
+                    {scheduleMode === "interval" && (
+                      <div className="space-y-4 p-4 rounded-lg bg-secondary/30">
+                        <p className="text-sm text-muted-foreground">Riego cada cierto intervalo de tiempo</p>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="interval-days">Días</Label>
+                            <Input
+                              id="interval-days"
+                              type="number"
+                              min="0"
+                              max="30"
+                              value={intervalDays}
+                              onChange={(e) => setIntervalDays(Number(e.target.value))}
+                              className="relative z-10"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="interval-hours">Horas</Label>
+                            <Input
+                              id="interval-hours"
+                              type="number"
+                              min="0"
+                              max="23"
+                              value={intervalHours}
+                              onChange={(e) => setIntervalHours(Number(e.target.value))}
+                              className="relative z-10"
+                            />
+                          </div>
+                        </div>
+                        <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+                          <p className="text-sm font-medium text-foreground">
+                            Frecuencia: Cada {intervalDays > 0 && `${intervalDays} día${intervalDays > 1 ? "s" : ""}`}
+                            {intervalDays > 0 && intervalHours > 0 && " y "}
+                            {intervalHours > 0 && `${intervalHours} hora${intervalHours > 1 ? "s" : ""}`}
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="interval-start-time">Hora de Inicio</Label>
+                          <Input
+                            id="interval-start-time"
+                            type="time"
+                            value={scheduleTime}
+                            onChange={(e) => setScheduleTime(e.target.value)}
+                            className="relative z-10"
+                          />
+                        </div>
+                        {/* Optional: multiple times per watering day */}
+                        <div className="space-y-2">
+                          <Label className="mb-1 block">Horarios (en día de riego, opcional)</Label>
+                          <div className="space-y-3">
+                            {scheduleTimes.map((time, index) => (
+                              <div key={index} className="flex items-center gap-2">
+                                <Input
+                                  type="time"
+                                  value={time}
+                                  onChange={(e) => updateScheduleTime(index, e.target.value)}
+                                  className="relative z-10"
+                                />
+                                {scheduleTimes.length > 1 && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => removeScheduleTime(index)}
+                                    className="relative z-10"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            ))}
+                            {scheduleTimes.length < 6 && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={addScheduleTime}
+                                className="w-full relative z-10 bg-transparent"
+                              >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Agregar Horario
+                              </Button>
+                            )}
+                            <p className="text-xs text-muted-foreground">Ejemplo: cada 2 días a las 08:00 y 15:00.</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Custom Mode */}
+                    {scheduleMode === "custom" && (
+                      <div className="space-y-4 p-4 rounded-lg bg-secondary/30">
+                        <p className="text-sm text-muted-foreground">
+                          Configuración avanzada: combina días específicos con múltiples horarios
+                        </p>
+                        <div className="space-y-4">
+                          <div>
+                            <Label className="mb-2 block">Días de la Semana</Label>
+                            <div className="grid grid-cols-7 gap-2">
+                              {dayNames.map((day, index) => (
+                                <Button
+                                  key={index}
+                                  type="button"
+                                  variant={selectedDays.includes(index) ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => toggleDay(index)}
+                                  className="relative z-10 p-2 h-auto"
+                                >
+                                  {day}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <Label className="mb-2 block">Horarios</Label>
+                            <div className="space-y-3">
+                              {scheduleTimes.map((time, index) => (
+                                <div key={index} className="flex items-center gap-2">
+                                  <Input
+                                    type="time"
+                                    value={time}
+                                    onChange={(e) => updateScheduleTime(index, e.target.value)}
+                                    className="relative z-10"
+                                  />
+                                  {scheduleTimes.length > 1 && (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => removeScheduleTime(index)}
+                                      className="relative z-10"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                </div>
+                              ))}
+                              {scheduleTimes.length < 6 && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={addScheduleTime}
+                                  className="w-full relative z-10 bg-transparent"
+                                >
+                                  <Plus className="w-4 h-4 mr-2" />
+                                  Agregar Horario
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
+            )}
 
             {/* Test Button */}
             <Card className="gradient-border">
@@ -757,7 +802,7 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
                 <Button
                   type="button"
                   onClick={handleTest}
-                  disabled={isTesting || editedValve.status === "off"}
+                  disabled={isTesting || enabled === false}
                   className="w-full bg-transparent relative z-10"
                   variant="outline"
                 >

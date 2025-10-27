@@ -4,6 +4,9 @@ import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { Droplets, Settings } from "lucide-react"
 
 type EventItem = {
@@ -27,26 +30,57 @@ type Row = {
 export function HistoryTable() {
   const [items, setItems] = useState<EventItem[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Filters
+  const [eventType, setEventType] = useState<'all' | 'result' | 'config-ack'>('all')
+  const [valveFilter, setValveFilter] = useState<number | 0>(0)
+  const [originFilter, setOriginFilter] = useState<'all' | 'Sistema' | 'Usuario'>('all')
+  const [fromTs, setFromTs] = useState<string>('') // datetime-local
+  const [toTs, setToTs] = useState<string>('')
+
+  // Pagination
+  const [page, setPage] = useState(1)
+  const pageSize = 10
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
+    setError(null)
     ;(async () => {
       try {
-        const res = await fetch('/api/history?limit=200', { cache: 'no-store' })
+        const res = await fetch('/api/history?limit=1000', { cache: 'no-store' })
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const json = await res.json()
-        if (!cancelled && json?.ok) {
-          setItems(Array.isArray(json.items) ? json.items : [])
-        }
-      } catch {}
+        if (!cancelled && json?.ok) setItems(Array.isArray(json.items) ? json.items : [])
+      } catch (e: any) {
+        if (!cancelled) setError(e?.message || 'Error al cargar')
+      }
       if (!cancelled) setLoading(false)
     })()
     return () => { cancelled = true }
   }, [])
 
-  const rows: Row[] = useMemo(() => {
+  const filtered: EventItem[] = useMemo(() => {
+    let out = items.slice()
+    if (eventType !== 'all') out = out.filter(it => it.type === eventType)
+    if (valveFilter) out = out.filter(it => it?.type !== 'result' ? true : Number(it?.payload?.valve) === valveFilter)
+    if (originFilter !== 'all') out = out.filter(() => true) // placeholder for future origin field
+    if (fromTs) {
+      const from = new Date(fromTs).getTime()
+      out = out.filter(it => Number(it?.ts) >= from)
+    }
+    if (toTs) {
+      const to = new Date(toTs).getTime()
+      out = out.filter(it => Number(it?.ts) <= to)
+    }
+    return out
+  }, [items, eventType, valveFilter, originFilter, fromTs, toTs])
+
+  // Map to rows after filtering
+  const mapped: Row[] = useMemo(() => {
     const out: Row[] = []
-    for (const it of items) {
+    for (const it of filtered) {
       const ts = Number(it?.ts)
       const when = Number.isFinite(ts) ? new Date(ts).toLocaleString() : '—'
       if (it?.type === 'result') {
@@ -79,9 +113,14 @@ export function HistoryTable() {
         })
       }
     }
-    // latest first (already sorted desc in API, but ensure array type safety)
-    return out.slice(0, 50)
-  }, [items])
+    return out
+  }, [filtered])
+
+  const totalPages = Math.max(1, Math.ceil(mapped.length / pageSize))
+  const pageRows = useMemo(() => {
+    const start = (page - 1) * pageSize
+    return mapped.slice(start, start + pageSize)
+  }, [mapped, page])
 
   return (
     <Card className="gradient-border">
@@ -90,6 +129,58 @@ export function HistoryTable() {
         <CardDescription>Datos reales desde el dispositivo y la base de datos</CardDescription>
       </CardHeader>
       <CardContent>
+        {/* Filters */}
+        <div className="flex flex-wrap gap-3 items-end mb-3">
+          <div className="w-40">
+            <label className="text-xs text-muted-foreground">Evento</label>
+            <Select value={eventType} onValueChange={(v: any) => { setEventType(v); setPage(1) }}>
+              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="result">Riego</SelectItem>
+                <SelectItem value="config-ack">Configuración</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-40">
+            <label className="text-xs text-muted-foreground">Válvula</label>
+            <Select value={String(valveFilter)} onValueChange={(v: string) => { setValveFilter(Number(v)); setPage(1) }}>
+              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">Todas</SelectItem>
+                <SelectItem value="1">V1</SelectItem>
+                <SelectItem value="2">V2</SelectItem>
+                <SelectItem value="3">V3</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-40">
+            <label className="text-xs text-muted-foreground">Origen</label>
+            <Select value={originFilter} onValueChange={(v: any) => { setOriginFilter(v); setPage(1) }}>
+              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="Sistema">Sistema</SelectItem>
+                <SelectItem value="Usuario">Usuario</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-end gap-2">
+            <div>
+              <label className="text-xs text-muted-foreground">Desde</label>
+              <Input type="datetime-local" value={fromTs} onChange={(e) => { setFromTs(e.target.value); setPage(1) }} className="h-8" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">Hasta</label>
+              <Input type="datetime-local" value={toTs} onChange={(e) => { setToTs(e.target.value); setPage(1) }} className="h-8" />
+            </div>
+            <Button type="button" variant="outline" className="h-8 bg-transparent" onClick={() => { setEventType('all'); setValveFilter(0); setOriginFilter('all'); setFromTs(''); setToTs(''); setPage(1) }}>Limpiar</Button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="text-sm text-red-400 mb-3">Error: {error}</div>
+        )}
         <div className="rounded-lg border border-border overflow-hidden">
           <Table>
             <TableHeader>
@@ -103,7 +194,7 @@ export function HistoryTable() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row) => (
+              {pageRows.map((row) => (
                 <TableRow key={row.id} className="hover:bg-secondary/30">
                   <TableCell className="font-medium text-foreground">{row.timestamp}</TableCell>
                   <TableCell>
@@ -124,7 +215,7 @@ export function HistoryTable() {
                   <TableCell className="text-muted-foreground">{row.actor ?? '—'}</TableCell>
                 </TableRow>
               ))}
-              {(!loading && rows.length === 0) && (
+              {(!loading && mapped.length === 0) && (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-6">
                     No hay eventos aún.
@@ -133,6 +224,15 @@ export function HistoryTable() {
               )}
             </TableBody>
           </Table>
+        </div>
+
+        {/* Pagination */}
+        <div className="flex items-center justify-between mt-3">
+          <div className="text-xs text-muted-foreground">Página {page} de {totalPages} • {mapped.length} eventos</div>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" className="h-8 bg-transparent" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Anterior</Button>
+            <Button type="button" variant="outline" className="h-8 bg-transparent" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Siguiente</Button>
+          </div>
         </div>
       </CardContent>
     </Card>

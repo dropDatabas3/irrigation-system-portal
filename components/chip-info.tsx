@@ -12,9 +12,9 @@ import { Wifi, Rss, Server, HardDrive, Cpu, Activity, Settings, Network, Info } 
 
 function KeyValue({ label, value }: { label: string; value: any }) {
   return (
-    <div className="flex items-center justify-between py-1 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-mono text-foreground ml-4 truncate max-w-[60%] text-right">{value ?? '—'}</span>
+    <div className="grid grid-cols-[140px_1fr] items-center gap-3 py-1 text-sm">
+      <span className="text-muted-foreground whitespace-nowrap">{label}</span>
+      <span className="font-mono text-foreground break-all whitespace-pre-wrap">{value ?? '—'}</span>
     </div>
   );
 }
@@ -124,7 +124,12 @@ export default function ChipInfoPanel() {
           {/* MQTT & FS */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <Card className="gradient-border lg:col-span-2">
-              <CardHeader className="pb-2"><SectionTitle icon={Server}>MQTT</SectionTitle></CardHeader>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <SectionTitle icon={Server}>MQTT</SectionTitle>
+                  <Button size="sm" variant="outline" className="bg-transparent" onClick={() => window.history.back()}>Volver</Button>
+                </div>
+              </CardHeader>
               <CardContent className="p-4 space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <KeyValue label="Host" value={lastInfo?.mqtt?.host} />
@@ -135,9 +140,9 @@ export default function ChipInfoPanel() {
                   <div className="text-sm text-muted-foreground mb-2">Topics</div>
                   <div className="rounded border border-border bg-background/50 p-3 max-h-40 overflow-auto">
                     {lastInfo?.mqtt?.topics && Object.entries(lastInfo.mqtt.topics).map(([k, v]) => (
-                      <div key={k} className="text-xs flex justify-between py-0.5">
-                        <span className="text-muted-foreground">{k}</span>
-                        <span className="font-mono text-foreground ml-3 truncate max-w-[70%]">{String(v)}</span>
+                      <div key={k} className="text-xs grid grid-cols-[140px_1fr] items-start gap-3 py-0.5">
+                        <span className="text-muted-foreground whitespace-nowrap">{k}</span>
+                        <span className="font-mono text-foreground break-all">{String(v)}</span>
                       </div>
                     ))}
                   </div>
