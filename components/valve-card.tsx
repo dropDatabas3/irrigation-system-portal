@@ -38,10 +38,11 @@ export function ValveCard({ valve, onToggle, onClick }: ValveCardProps) {
   }
 
   const isLockedOff = valve.status === "off"
+  const isEnabled = valve.enabled !== false
   const offTitle = isLockedOff ? "Deshabilitada por sistema por problemas de hardware" : undefined
 
   return (
-    <Card className={`gradient-border hover:shadow-lg transition-shadow relative ${isLockedOff ? 'opacity-60' : ''}`} title={offTitle}>
+    <Card className={`gradient-border hover:shadow-lg transition-shadow relative ${(!isEnabled || isLockedOff) ? 'opacity-70' : ''}`} title={offTitle}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
@@ -51,13 +52,16 @@ export function ValveCard({ valve, onToggle, onClick }: ValveCardProps) {
               {valve.zone}
             </div>
           </div>
-          <Badge className={getStatusColor(valve.status)}>{getStatusText(valve.status)}</Badge>
+          <div className="flex items-center gap-2">
+            <Badge className={getStatusColor(valve.status)}>{getStatusText(valve.status)}</Badge>
+            {!isEnabled && <Badge variant="outline" className="text-muted-foreground">Deshabilitada</Badge>}
+          </div>
         </div>
       </CardHeader>
 
       <CardContent className="space-y-4">
         {/* Live run info when active */}
-        {valve.status === 'active' ? (
+        {isEnabled && valve.status === 'active' ? (
           <div className="space-y-3 min-h-[140px]">
             {/* Liters progress X / Y */}
             <div className="p-3 rounded-lg bg-secondary/40 border border-secondary/60">
@@ -125,19 +129,19 @@ export function ValveCard({ valve, onToggle, onClick }: ValveCardProps) {
               <span className="text-muted-foreground">Última activación:</span>
               <span className="text-foreground">{valve.lastActive}</span>
             </div>
+            {!isEnabled && (
+              <div className="text-xs text-muted-foreground">Esta válvula está deshabilitada. Puedes habilitarla con el interruptor de abajo o desde "Ver más".</div>
+            )}
           </div>
         )}
 
         {/* Control Switch and Settings Button */}
         <div className="flex items-center justify-between pt-2 border-t border-border gap-3 relative z-10">
           <div className="flex items-center gap-2 flex-1">
-            <span className="text-sm font-medium text-foreground">Manual (5s)</span>
+            <span className="text-sm font-medium text-foreground">Habilitada</span>
             <Switch
-              checked={valve.status === "active"}
-              onCheckedChange={(checked) => {
-                console.log("[v0] Valve switch toggled:", { valveId: valve.id, checked })
-                onToggle()
-              }}
+              checked={isEnabled}
+              onCheckedChange={() => onToggle()}
               disabled={isLockedOff}
               className="relative z-10"
               title={offTitle}
@@ -152,7 +156,7 @@ export function ValveCard({ valve, onToggle, onClick }: ValveCardProps) {
               onClick()
             }}
             className="gap-2 bg-transparent relative z-10"
-            disabled={isLockedOff}
+            disabled={false}
             title={offTitle}
           >
             <Settings className="w-4 h-4" />

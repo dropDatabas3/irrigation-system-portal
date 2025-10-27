@@ -12,6 +12,7 @@ export interface Valve {
   name: string
   zone: string
   status: "active" | "inactive" | "off"
+  enabled?: boolean
   flowRate: number
   flowLph?: number
   runLiters?: number
@@ -32,7 +33,8 @@ export interface Valve {
 
 export function ValveGrid() {
   const { lastConfigAck, events, lastStatus } = useIrrigationEvents()
-  const [enabledSet, setEnabledSet] = useState<Set<number>>(new Set())
+  // Default to all three physical valves enabled unless config says otherwise
+  const [enabledSet, setEnabledSet] = useState<Set<number>>(new Set([1,2,3]))
   // tick to force periodic re-render for countdowns
   const [tick, setTick] = useState(0)
   useEffect(() => {
@@ -245,21 +247,47 @@ export function ValveGrid() {
     } catch {}
   }, [lastConfigAck]);
 
-  const toggleValve = async (id: string) => {
-    const current = valves.find((v: Valve) => v.id === id)?.status
-    const next = current === "active" ? "inactive" : "active"
-    setValves(valves.map((v: Valve) => (v.id === id ? { ...v, status: next } : v)))
+  // Toggle enable/disable for a valve and persist via /api/config
+  const toggleEnabled = async (id: string, value: boolean) => {
     try {
       const devValve = toDeviceValve(id as any)
       if (devValve === 0) return
-      // If turning on, open for 5 seconds; if turning off, send alloff
-      if (next === "active") {
-        await sendCmd({ action: "openMs", valve: devValve, ms: 5000 })
-      } else {
-        await sendCmd({ action: "alloff" })
-      }
+      // Update UI immediately
+      setEnabledSet(prev => {
+        const s = new Set(prev)
+        if (value) s.add(devValve); else s.delete(devValve)
+        return s
+      })
+      setValves(prev => prev.map(v => v.id === id ? { ...v, enabled: value } : v))
+
+      // Merge and POST config
+      let baseValves: Array<{ id: number; enabled?: boolean; name?: string; zone?: string }> = []
+      let baseJobs: any[] = []
+      try {
+        const res = await fetch('/api/config', { method: 'GET' })
+        if (res.ok) {
+          const data = await res.json()
+          const cfg = data?.config || {}
+          baseValves = Array.isArray(cfg?.valves) ? cfg.valves : []
+          baseJobs = Array.isArray(cfg?.jobs) ? cfg.jobs : []
+        }
+      } catch {}
+
+      // Replace or add this valve entry
+      const others = baseValves.filter(v => Number(v?.id) !== devValve)
+      const meta = valves.find(v => v.id === id)
+      const mergedValves = [
+        ...others,
+        { id: devValve, enabled: value, name: meta?.name, zone: meta?.zone },
+      ]
+
+      await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ valves: mergedValves, jobs: baseJobs }),
+      })
     } catch (e) {
-      console.error("toggleValve command failed", e)
+      console.error('toggleEnabled failed', e)
     }
   }
 
@@ -283,17 +311,19 @@ export function ValveGrid() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
-          {valves.filter(v => {
-            const num = v.id === 'v1' ? 1 : v.id === 'v2' ? 2 : v.id === 'v3' ? 3 : 0
-            return enabledSet.has(num)
-          }).map((valve) => (
+          {valves.map((valve) => {
+            const num = valve.id === 'v1' ? 1 : valve.id === 'v2' ? 2 : valve.id === 'v3' ? 3 : 0
+            const isEnabled = enabledSet.has(num)
+            const v = { ...valve, enabled: isEnabled }
+            return (
             <ValveCard
-              key={valve.id}
-              valve={valve}
-              onToggle={() => toggleValve(valve.id)}
-              onClick={() => openValveDetails(valve)}
+              key={v.id}
+              valve={v}
+              onToggle={() => toggleEnabled(v.id, !(v.enabled !== false))}
+              onClick={() => openValveDetails(v)}
             />
-          ))}
+            )
+          })}
         </div>
       </div>
 
