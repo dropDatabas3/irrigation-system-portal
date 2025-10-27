@@ -1,123 +1,93 @@
 "use client"
 
+import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Droplets, Power, PowerOff, Settings } from "lucide-react"
+import { Droplets, Settings } from "lucide-react"
 
-interface HistoryEvent {
+type EventItem = {
+  _id?: string
+  type: "result" | "config-ack" | string
+  ts: number
+  payload?: any
+}
+
+type Row = {
   id: string
   timestamp: string
   valve: string
-  action: "activated" | "deactivated" | "configured"
-  duration?: number
-  waterUsed?: number
-  user: string
+  action: string
+  duration?: string
+  waterUsed?: string
+  actor?: string
+  badgeVariant: "default" | "secondary" | "outline"
 }
 
 export function HistoryTable() {
-  const history: HistoryEvent[] = [
-    {
-      id: "1",
-      timestamp: "14/12/2024 18:30",
-      valve: "Válvula 4",
-      action: "deactivated",
-      duration: 60,
-      waterUsed: 180,
-      user: "Sistema",
-    },
-    {
-      id: "2",
-      timestamp: "14/12/2024 18:00",
-      valve: "Válvula 4",
-      action: "activated",
-      user: "Sistema",
-    },
-    {
-      id: "3",
-      timestamp: "14/12/2024 15:45",
-      valve: "Válvula 2",
-      action: "configured",
-      user: "Admin",
-    },
-    {
-      id: "4",
-      timestamp: "14/12/2024 06:45",
-      valve: "Válvula 2",
-      action: "deactivated",
-      duration: 45,
-      waterUsed: 135,
-      user: "Sistema",
-    },
-    {
-      id: "5",
-      timestamp: "14/12/2024 06:30",
-      valve: "Válvula 1",
-      action: "deactivated",
-      duration: 30,
-      waterUsed: 90,
-      user: "Sistema",
-    },
-    {
-      id: "6",
-      timestamp: "14/12/2024 06:00",
-      valve: "Válvula 2",
-      action: "activated",
-      user: "Sistema",
-    },
-    {
-      id: "7",
-      timestamp: "14/12/2024 06:00",
-      valve: "Válvula 1",
-      action: "activated",
-      user: "Sistema",
-    },
-    {
-      id: "8",
-      timestamp: "13/12/2024 18:30",
-      valve: "Válvula 3",
-      action: "deactivated",
-      duration: 30,
-      waterUsed: 75,
-      user: "Sistema",
-    },
-  ]
+  const [items, setItems] = useState<EventItem[]>([])
+  const [loading, setLoading] = useState(false)
 
-  const getActionIcon = (action: HistoryEvent["action"]) => {
-    switch (action) {
-      case "activated":
-        return <Power className="w-4 h-4" />
-      case "deactivated":
-        return <PowerOff className="w-4 h-4" />
-      case "configured":
-        return <Settings className="w-4 h-4" />
-    }
-  }
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    ;(async () => {
+      try {
+        const res = await fetch('/api/history?limit=200', { cache: 'no-store' })
+        const json = await res.json()
+        if (!cancelled && json?.ok) {
+          setItems(Array.isArray(json.items) ? json.items : [])
+        }
+      } catch {}
+      if (!cancelled) setLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [])
 
-  const getActionBadge = (action: HistoryEvent["action"]) => {
-    switch (action) {
-      case "activated":
-        return (
-          <Badge variant="default" className="gradient-primary">
-            Activada
-          </Badge>
-        )
-      case "deactivated":
-        return <Badge variant="secondary">Desactivada</Badge>
-      case "configured":
-        return (
-          <Badge variant="outline" className="border-accent text-accent">
-            Configurada
-          </Badge>
-        )
+  const rows: Row[] = useMemo(() => {
+    const out: Row[] = []
+    for (const it of items) {
+      const ts = Number(it?.ts)
+      const when = Number.isFinite(ts) ? new Date(ts).toLocaleString() : '—'
+      if (it?.type === 'result') {
+        const v = Number(it?.payload?.valve)
+        const liters = Number(it?.payload?.deliveredLiters ?? it?.payload?.liters ?? 0)
+        const durMs = Number(it?.payload?.durationMs ?? 0)
+        if (!Number.isFinite(v) || liters <= 0 || durMs <= 0) continue
+        out.push({
+          id: String(it?._id ?? `${ts}-v${v}`),
+          timestamp: when,
+          valve: v > 0 ? `Válvula ${v}` : '—',
+          action: 'Riego',
+          duration: `${Math.round(durMs / 60000)} min`,
+          waterUsed: `${liters.toFixed(2)} L`,
+          actor: 'Sistema',
+          badgeVariant: 'default',
+        })
+      } else if (it?.type === 'config-ack') {
+        const valvesArr: Array<any> = Array.isArray(it?.payload?.valves) ? it.payload.valves : []
+        const enabled = valvesArr.filter(v => v?.enabled).length
+        out.push({
+          id: String(it?._id ?? `cfg-${ts}`),
+          timestamp: when,
+          valve: enabled ? `${enabled} habilitadas` : '—',
+          action: 'Configuración aplicada',
+          duration: '—',
+          waterUsed: '—',
+          actor: 'Sistema',
+          badgeVariant: 'outline',
+        })
+      }
     }
-  }
+    // latest first (already sorted desc in API, but ensure array type safety)
+    return out.slice(0, 50)
+  }, [items])
 
   return (
     <Card className="gradient-border">
       <CardHeader>
         <CardTitle className="text-foreground">Historial de Actividad</CardTitle>
-        <CardDescription>Registro completo de eventos del sistema</CardDescription>
+        <CardDescription>Datos reales desde el dispositivo y la base de datos</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="rounded-lg border border-border overflow-hidden">
@@ -125,35 +95,42 @@ export function HistoryTable() {
             <TableHeader>
               <TableRow className="bg-secondary/50">
                 <TableHead className="text-foreground">Fecha y Hora</TableHead>
-                <TableHead className="text-foreground">Válvula</TableHead>
-                <TableHead className="text-foreground">Acción</TableHead>
+                <TableHead className="text-foreground">Válvula / Detalle</TableHead>
+                <TableHead className="text-foreground">Evento</TableHead>
                 <TableHead className="text-foreground">Duración</TableHead>
                 <TableHead className="text-foreground">Agua Usada</TableHead>
-                <TableHead className="text-foreground">Usuario</TableHead>
+                <TableHead className="text-foreground">Origen</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {history.map((event) => (
-                <TableRow key={event.id} className="hover:bg-secondary/30">
-                  <TableCell className="font-medium text-foreground">{event.timestamp}</TableCell>
+              {rows.map((row) => (
+                <TableRow key={row.id} className="hover:bg-secondary/30">
+                  <TableCell className="font-medium text-foreground">{row.timestamp}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Droplets className="w-4 h-4 text-primary" />
-                      <span className="text-foreground">{event.valve}</span>
+                      {row.action === 'Riego' ? (
+                        <Droplets className="w-4 h-4 text-primary" />
+                      ) : (
+                        <Settings className="w-4 h-4 text-accent" />
+                      )}
+                      <span className="text-foreground">{row.valve}</span>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">{getActionBadge(event.action)}</div>
+                    <Badge variant={row.badgeVariant}>{row.action}</Badge>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {event.duration ? `${event.duration} min` : "-"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {event.waterUsed ? `${event.waterUsed} L` : "-"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{event.user}</TableCell>
+                  <TableCell className="text-muted-foreground">{row.duration ?? '—'}</TableCell>
+                  <TableCell className="text-muted-foreground">{row.waterUsed ?? '—'}</TableCell>
+                  <TableCell className="text-muted-foreground">{row.actor ?? '—'}</TableCell>
                 </TableRow>
               ))}
+              {(!loading && rows.length === 0) && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-6">
+                    No hay eventos aún.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </div>

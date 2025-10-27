@@ -34,7 +34,7 @@ export async function GET(req: Request) {
     const deviceId = getDeviceId()
     const items = await withDb(async (db) => {
       const col = db.collection('events')
-      const match: any = { deviceId, type: 'result', ts: { $gte: s * 1000, $lt: e * 1000 } }
+  const match: any = { deviceId, type: 'result', ts: { $gte: s * 1000, $lt: e * 1000 }, 'payload.liters': { $gt: 0 } }
       if (Number.isFinite(valve)) match['payload.valve'] = valve
       const pipeline = [
         { $match: match },

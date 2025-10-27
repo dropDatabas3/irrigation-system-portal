@@ -23,7 +23,7 @@ export async function GET(request: Request) {
       const matchBase = { deviceId, type: 'result', 'payload.valve': valve }
 
       const [lastRun] = await col
-        .find(matchBase)
+        .find({ ...matchBase, 'payload.liters': { $gt: 0 }, 'payload.durationMs': { $gt: 0 } })
         .project({ ts: 1, 'payload.liters': 1, 'payload.durationMs': 1 })
         .sort({ ts: -1 })
         .limit(1)
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
 
       const [agg7] = await col
         .aggregate([
-          { $match: { ...matchBase, ts: { $gte: sevenDaysAgo } } },
+          { $match: { ...matchBase, ts: { $gte: sevenDaysAgo }, 'payload.liters': { $gt: 0 }, 'payload.durationMs': { $gt: 0 } } },
           { $project: { liters: { $ifNull: ['$payload.liters', 0] }, durationMs: { $ifNull: ['$payload.durationMs', 0] } } },
           { $group: { _id: null, liters: { $sum: '$liters' }, durationMs: { $sum: '$durationMs' }, runs: { $sum: 1 } } },
         ])
@@ -39,7 +39,7 @@ export async function GET(request: Request) {
 
       const [agg30] = await col
         .aggregate([
-          { $match: { ...matchBase, ts: { $gte: thirtyDaysAgo } } },
+          { $match: { ...matchBase, ts: { $gte: thirtyDaysAgo }, 'payload.liters': { $gt: 0 }, 'payload.durationMs': { $gt: 0 } } },
           { $project: { liters: { $ifNull: ['$payload.liters', 0] }, durationMs: { $ifNull: ['$payload.durationMs', 0] } } },
           { $group: { _id: null, liters: { $sum: '$liters' }, durationMs: { $sum: '$durationMs' }, runs: { $sum: 1 } } },
         ])

@@ -18,7 +18,7 @@ export async function GET() {
 
       const [monthAgg] = await col
         .aggregate([
-          { $match: { deviceId, type: 'result', ts: { $gte: monthStart } } },
+          { $match: { deviceId, type: 'result', ts: { $gte: monthStart }, 'payload.liters': { $gt: 0 } } },
           { $project: { liters: { $ifNull: ['$payload.liters', 0] }, durationMs: { $ifNull: ['$payload.durationMs', 0] } } },
           { $group: { _id: null, liters: { $sum: '$liters' }, durationMs: { $sum: '$durationMs' } } },
         ])
@@ -26,7 +26,7 @@ export async function GET() {
 
       const [sevenAgg] = await col
         .aggregate([
-          { $match: { deviceId, type: 'result', ts: { $gte: sevenDaysAgo } } },
+          { $match: { deviceId, type: 'result', ts: { $gte: sevenDaysAgo }, 'payload.liters': { $gt: 0 } } },
           { $project: { liters: { $ifNull: ['$payload.liters', 0] } } },
           { $group: { _id: null, liters: { $sum: '$liters' } } },
         ])
@@ -34,7 +34,7 @@ export async function GET() {
 
       const [thirtyAgg] = await col
         .aggregate([
-          { $match: { deviceId, type: 'result', ts: { $gte: thirtyDaysAgo } } },
+          { $match: { deviceId, type: 'result', ts: { $gte: thirtyDaysAgo }, 'payload.durationMs': { $gt: 0 } } },
           { $project: { durationMs: { $ifNull: ['$payload.durationMs', 0] } } },
           { $group: { _id: null, durationMs: { $sum: '$durationMs' } } },
         ])

@@ -34,10 +34,13 @@ export function WaterUsageChart() {
     for (const it of items) {
       const ts = Number(it?.ts)
       if (!Number.isFinite(ts)) continue
+      const liters = Number(it?.payload?.deliveredLiters ?? it?.payload?.liters ?? 0)
+      const durMs = Number(it?.payload?.durationMs ?? 0)
+      // Filter to true irrigation results only
+      if (!(liters > 0 && durMs > 0)) continue
       const d = new Date(ts)
       const key = d.toLocaleDateString()
-      const liters = Number(it?.payload?.deliveredLiters ?? it?.payload?.liters ?? 0)
-      byDay.set(key, (byDay.get(key) || 0) + (Number.isFinite(liters) ? liters : 0))
+      byDay.set(key, (byDay.get(key) || 0) + liters)
     }
     const arr = Array.from(byDay.entries()).map(([date, usage]) => ({ date, usage }))
     arr.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())

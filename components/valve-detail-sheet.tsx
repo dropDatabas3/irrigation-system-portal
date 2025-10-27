@@ -39,6 +39,8 @@ interface ValveDetailSheetProps {
 export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveDetailSheetProps) {
   const [editedValve, setEditedValve] = useState(valve)
   const [isTesting, setIsTesting] = useState(false)
+  // Control de habilitación separado del estado de ejecución (activa/inactiva)
+  const [enabled, setEnabled] = useState<boolean>(valve.status !== 'off')
   const [metrics, setMetrics] = useState<null | {
     lastRun: { ts: number; liters: number; durationMs: number } | null
     seven: { liters: number; durationMs: number; runs: number }
@@ -104,8 +106,9 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
         horizonDays: 7,
       })
 
-      // 3) Merge with existing config so we don't wipe other valves' schedules
+      // 3) Merge with existing config so we don't wipe other valves' schedules/metadata
       let baseJobs: any[] = []
+      let baseValves: Array<{ id: number; enabled?: boolean; name?: string; zone?: string }> = []
       try {
         const res = await fetch('/api/config', { method: 'GET' })
         if (res.ok) {
@@ -114,20 +117,28 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
           const arr = Array.isArray(cfg?.jobs) ? cfg.jobs : []
           // keep jobs for other valves only
           baseJobs = arr.filter((j: any) => Number(j?.valve) !== toDeviceValve(editedValve.id as any))
+          const valvesArr: Array<any> = Array.isArray(cfg?.valves) ? cfg.valves : []
+          // keep valves metadata for other valves only
+          baseValves = valvesArr.filter((v: any) => Number(v?.id) !== toDeviceValve(editedValve.id as any))
         }
       } catch {}
 
       const merged = [...baseJobs, ...jobs]
       merged.sort((a: any, b: any) => (a?.at || 0) - (b?.at || 0))
 
-      // 4) Send config/set with merged jobs
-      if (merged.length > 0) {
-        await fetch('/api/config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ jobs: merged }),
-        })
-      }
+      // 4) Build valves array update for this valve (habilitada/deshabilitada + nombre/zona)
+      const devValve = toDeviceValve(editedValve.id as any)
+      const updatedValves = [
+        ...baseValves,
+        { id: devValve, enabled, name: editedValve.name, zone: editedValve.zone },
+      ]
+
+      // 5) Send config/set with merged jobs and valves
+      await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobs: merged, valves: updatedValves }),
+      })
 
       onOpenChange(false)
     } catch (e) {
@@ -366,11 +377,24 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Caudal promedio histórico</span>
                     <span className="text-lg font-semibold text-foreground">
-                      {(valve.flowRate * 0.85).toFixed(1)} L/min
+                      {loadingMetrics
+                        ? '—'
+                        : ((metrics?.thirty?.durationMs ?? 0) > 0
+                          ? (metrics!.thirty.liters / ((metrics!.thirty.durationMs) / 60000)).toFixed(1) + ' L/min'
+                          : '—')}
                     </span>
                   </div>
                   <div className="w-full bg-secondary rounded-full h-2">
-                    <div className="bg-primary h-2 rounded-full" style={{ width: "85%" }} />
+                    {(() => {
+                      const avg = (metrics?.thirty?.durationMs ?? 0) > 0
+                        ? (metrics!.thirty.liters / (metrics!.thirty.durationMs / 60000))
+                        : 0
+                      // Compare average vs live flow when available (fallback keeps bar subtle if no data)
+                      const live = typeof (editedValve as any)?.flowLph === 'number' ? ((editedValve as any).flowLph / 60) : 0
+                      const denom = Math.max(avg, live, 0.01)
+                      const pct = Math.max(0, Math.min(100, Math.round((avg / denom) * 100)))
+                      return <div className="bg-primary h-2 rounded-full" style={{ width: `${pct}%` }} />
+                    })()}
                   </div>
                 </div>
               </CardContent>
@@ -405,20 +429,17 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="valve-status">Estado</Label>
+                  <Label htmlFor="valve-enabled">Habilitación</Label>
                   <Select
-                    value={editedValve.status}
-                    onValueChange={(value: "active" | "inactive" | "off") =>
-                      setEditedValve({ ...editedValve, status: value })
-                    }
+                    value={enabled ? 'on' : 'off'}
+                    onValueChange={(value: 'on' | 'off') => setEnabled(value === 'on')}
                   >
-                    <SelectTrigger id="valve-status" className="relative z-10">
+                    <SelectTrigger id="valve-enabled" className="relative z-10">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="z-100">
-                      <SelectItem value="active">Activa</SelectItem>
-                      <SelectItem value="inactive">Inactiva</SelectItem>
-                      <SelectItem value="off">Desactivada</SelectItem>
+                      <SelectItem value="on">Habilitada</SelectItem>
+                      <SelectItem value="off">Deshabilitada</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
