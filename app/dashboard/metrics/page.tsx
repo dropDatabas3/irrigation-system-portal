@@ -10,7 +10,7 @@ export default function MetricsPage() {
     <div className="min-h-screen bg-background">
       <MetricsHeader />
 
-      <main className="container mx-auto p-4 md:p-6 lg:p-8 space-y-6">
+      <main className="container mx-auto p-3 md:p-6 lg:p-8 space-y-4 md:space-y-6">
         {/* Metrics Overview */}
         <MetricsOverview />
 
@@ -18,7 +18,7 @@ export default function MetricsPage() {
         <LitersPerDayChart />
 
         {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           <WaterUsageChart />
           <ValveActivityChart />
         </div>
