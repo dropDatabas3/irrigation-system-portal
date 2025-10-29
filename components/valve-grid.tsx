@@ -35,12 +35,17 @@ export function ValveGrid() {
   const { lastConfigAck, events, lastStatus } = useIrrigationEvents()
   // Default to all three physical valves enabled unless config says otherwise
   const [enabledSet, setEnabledSet] = useState<Set<number>>(new Set([1,2,3]))
-  // tick to force periodic re-render for countdowns
+  // tick to force periodic re-render for countdowns (only while running)
   const [tick, setTick] = useState(0)
+  const isRunning = useMemo(() => {
+    const s: any = lastStatus || {}
+    return typeof s?.runningValve === 'number' && s.runningValve > 0
+  }, [lastStatus])
   useEffect(() => {
-    const id = setInterval(() => setTick((t) => (t + 1) & 0xffff), 1000)
+    if (!isRunning) return
+    const id = setInterval(() => setTick((t) => (t + 1) & 0xffff), 2000)
     return () => clearInterval(id)
-  }, [])
+  }, [isRunning])
   const [valves, setValves] = useState<Valve[]>([
     {
       id: "v1",
