@@ -17,12 +17,10 @@ export function DashboardHeader() {
   const router = useRouter()
 
   const handleLogout = async () => {
-    console.log("[v0] Logout clicked")
     await logout()
   }
 
   const handleMetricsClick = () => {
-    console.log("[v0] Metrics button clicked, navigating to /dashboard/metrics")
     router.push("/dashboard/metrics")
   }
 

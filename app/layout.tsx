@@ -12,7 +12,6 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Sistema de Riego Inteligente",
   description: "Portal de configuración y monitoreo de sistema de riego",
-  generator: "v0.app",
   manifest: "/manifest.json",
   themeColor: "#0f172a",
   icons: {

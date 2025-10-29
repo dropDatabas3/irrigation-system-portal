@@ -15,7 +15,6 @@ export function LoginForm() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    console.log("[v0] Login form handleSubmit called")
     setIsLoading(true)
     setError("")
 
@@ -23,7 +22,6 @@ export function LoginForm() {
     const username = formData.get("username") as string
     const password = formData.get("password") as string
 
-    console.log("[v0] Form data extracted:", { username, password: "***" })
 
     try {
       const res = await login(username, password)
@@ -32,8 +30,7 @@ export function LoginForm() {
         setIsLoading(false)
       }
     } catch (err) {
-      console.error("[v0] Login error:", err)
-      setError("Error al iniciar sesión")
+      setError("Error al iniciar sesión: " + (err as any)?.message)
       setIsLoading(false)
     }
   }
