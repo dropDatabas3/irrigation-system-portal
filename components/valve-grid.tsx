@@ -305,6 +305,11 @@ export function ValveGrid() {
     setValves(valves.map((v: Valve) => (v.id === updatedValve.id ? updatedValve : v)))
   }
 
+  const displayValves = valves.filter((valve) => {
+    const num = valve.id === 'v1' ? 1 : valve.id === 'v2' ? 2 : valve.id === 'v3' ? 3 : 0
+    return enabledSet.has(num)
+  })
+
   return (
     <>
       <div className="space-y-4">
@@ -315,8 +320,13 @@ export function ValveGrid() {
           </div>
         </div>
 
+        {displayValves.length === 0 ? (
+          <div className="p-4 rounded-lg bg-secondary/30 border border-border text-sm text-muted-foreground">
+            No hay válvulas habilitadas. Habilítalas en Configuración.
+          </div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
-          {valves.map((valve) => {
+          {displayValves.map((valve) => {
             const num = valve.id === 'v1' ? 1 : valve.id === 'v2' ? 2 : valve.id === 'v3' ? 3 : 0
             const isEnabled = enabledSet.has(num)
             const v = { ...valve, enabled: isEnabled }
@@ -326,10 +336,12 @@ export function ValveGrid() {
               valve={v}
               onToggle={() => toggleEnabled(v.id, !(v.enabled !== false))}
               onClick={() => openValveDetails(v)}
+              showToggle={false}
             />
             )
           })}
         </div>
+        )}
       </div>
 
       {selectedValve && (
@@ -338,6 +350,11 @@ export function ValveGrid() {
           open={isSheetOpen}
           onOpenChange={setIsSheetOpen}
           onUpdate={updateValve}
+          onSelectValveId={(id: string) => {
+            const found = valves.find(v => v.id === id)
+            if (found) setSelectedValve(found)
+          }}
+          enabledValveIds={displayValves.map(v => v.id)}
         />
       )}
     </>

@@ -34,8 +34,12 @@ export async function getDb(): Promise<Db | null> {
       { key: { deviceId: 1, type: 1, ts: -1 }, name: 'byDeviceTypeTs' },
       { key: { ts: -1 }, name: 'byTs' },
     ])
-    await db.collection('configs').createIndex({ deviceId: 1, ts: -1 }, { name: 'byDeviceTs' })
-    await db.collection('configAcks').createIndex({ deviceId: 1, ts: -1 }, { name: 'byDeviceTs' })
+    // One doc per valve per device
+    try { await db.collection('configs').dropIndex('byDeviceTs') } catch {}
+    await db.collection('configs').createIndex({ deviceId: 1, valveId: 1 }, { name: 'byDeviceValve', unique: true })
+    // Keep only latest ack per device
+    try { await db.collection('configAcks').dropIndex('byDeviceTs') } catch {}
+    await db.collection('configAcks').createIndex({ deviceId: 1 }, { name: 'byDeviceUnique', unique: true })
   } catch {
     // ignore index errors in dev or when no permissions
   }

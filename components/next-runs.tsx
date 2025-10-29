@@ -43,7 +43,9 @@ export function NextRuns() {
     <Card className="gradient-border">
       <CardHeader>
         <CardTitle className="text-foreground">Próximos Riegos</CardTitle>
-        <CardDescription>Próximas 10 ejecuciones programadas</CardDescription>
+        {items.length > 0 && (
+          <CardDescription>Próximas 10 ejecuciones programadas</CardDescription>
+        )}
       </CardHeader>
       <CardContent>
         {items.length === 0 ? (

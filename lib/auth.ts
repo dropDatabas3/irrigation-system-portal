@@ -16,20 +16,9 @@ function getAuthSecret(): Uint8Array {
   return encoder.encode(secret)
 }
 
+
 function getUsersFromEnv(): User[] {
-  // Preferred: AUTH_USERS as JSON array of { username, passwordHash }
-  const json = process.env.AUTH_USERS
-  if (json) {
-    try {
-      const arr = JSON.parse(json)
-      if (Array.isArray(arr)) {
-        return arr
-          .map((u) => ({ username: String(u.username || ''), passwordHash: String(u.passwordHash || '') }))
-          .filter((u) => u.username && u.passwordHash)
-      }
-    } catch {}
-  }
-  // Optional: AUTH_USERS_PLAINTEXT as JSON array of { username, password }
+  // Only use AUTH_USERS_PLAINTEXT for now (array of { username, password })
   const jsonPlain = process.env.AUTH_USERS_PLAINTEXT
   if (jsonPlain) {
     try {
@@ -38,39 +27,27 @@ function getUsersFromEnv(): User[] {
         return arr
           .map((u) => {
             const username = String(u.username || '')
-            const pwd = String(u.password || '')
-            if (!username || !pwd) return null
-            // Hash on the fly at startup
-            const passwordHash = bcrypt.hashSync(pwd, 10)
-            return { username, passwordHash }
+            const password = String(u.password || '')
+            if (!username || !password) return null
+            // Store password in cleartext for direct compare (no hash)
+            return { username, passwordHash: password }
           })
           .filter(Boolean) as User[]
       }
     } catch {}
   }
-  // Fallback: USER1/USER2 pairs
-  const u1 = process.env.AUTH_USER1_USERNAME
-  const h1 = process.env.AUTH_USER1_PASSWORD_HASH
-  const p1 = process.env.AUTH_USER1_PASSWORD
-  const u2 = process.env.AUTH_USER2_USERNAME
-  const h2 = process.env.AUTH_USER2_PASSWORD_HASH
-  const p2 = process.env.AUTH_USER2_PASSWORD
-  const out: User[] = []
-  if (u1 && (h1 || p1)) out.push({ username: u1, passwordHash: h1 || bcrypt.hashSync(p1 as string, 10) })
-  if (u2 && (h2 || p2)) out.push({ username: u2, passwordHash: h2 || bcrypt.hashSync(p2 as string, 10) })
-  return out
+  return []
 }
 
 export async function verifyCredentials(username: string, password: string): Promise<User | null> {
+  // Only compare plain text (no hash)
+  const uname = (username ?? '').trim()
+  const pwd = (password ?? '')
   const users = getUsersFromEnv()
-  const found = users.find((u) => u.username.toLowerCase() === username.toLowerCase())
+  const found = users.find((u) => u.username.trim().toLowerCase() === uname.toLowerCase())
   if (!found) return null
-  try {
-    const ok = await bcrypt.compare(password, found.passwordHash)
-    return ok ? found : null
-  } catch {
-    return null
-  }
+  // Direct compare
+  return found.passwordHash === pwd ? found : null
 }
 
 export async function createSession(username: string): Promise<string> {
