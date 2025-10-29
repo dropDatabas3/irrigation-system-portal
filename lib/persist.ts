@@ -8,6 +8,10 @@ type PersistEvent = {
 }
 
 export async function saveEvent(evt: PersistEvent) {
+  const t = evt?.type
+  if (!t) return
+  // Only persist essential events: irrigation results and connectivity (LWT)
+  if (t !== 'result' && t !== 'lwt') return
   try {
     await withDb(async (db) => {
       const col = db.collection('events')
@@ -18,11 +22,12 @@ export async function saveEvent(evt: PersistEvent) {
   }
 }
 
-export async function savePostedConfig(deviceId: string, payload: any) {
+// Record a lightweight event when a configuration is created/updated
+export async function saveConfigCreatedEvent(deviceId: string, info: any) {
   try {
     await withDb(async (db) => {
-      const col = db.collection('configs')
-      await col.insertOne({ deviceId, payload, ts: Date.now() })
+      const col = db.collection('events')
+      await col.insertOne({ type: 'config-created', deviceId, payload: info, ts: Date.now() })
     })
   } catch {}
 }
@@ -31,7 +36,12 @@ export async function saveConfigAck(deviceId: string, payload: any) {
   try {
     await withDb(async (db) => {
       const col = db.collection('configAcks')
-      await col.insertOne({ deviceId, payload, ts: Date.now() })
+      // Keep only the latest ack per device (upsert)
+      await col.updateOne(
+        { deviceId },
+        { $set: { payload, ts: Date.now() } },
+        { upsert: true }
+      )
     })
   } catch {}
 }

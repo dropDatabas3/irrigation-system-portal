@@ -1,9 +1,7 @@
 import { MetricsHeader } from "@/components/metrics-header"
-import { WaterUsageChart } from "@/components/water-usage-chart"
-import { ValveActivityChart } from "@/components/valve-activity-chart"
 import { HistoryTable } from "@/components/history-table"
 import { MetricsOverview } from "@/components/metrics-overview"
-import { LitersPerDayChart } from "@/components/liters-per-day-chart"
+import { MetricsChartsClient } from "@/components/metrics-charts.client"
 
 export default function MetricsPage() {
   return (
@@ -14,14 +12,7 @@ export default function MetricsPage() {
         {/* Metrics Overview */}
         <MetricsOverview />
 
-        {/* Daily liters chart (moved from Dashboard) */}
-        <LitersPerDayChart />
-
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-          <WaterUsageChart />
-          <ValveActivityChart />
-        </div>
+        <MetricsChartsClient />
 
         {/* History Table */}
         <HistoryTable />

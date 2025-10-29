@@ -14,7 +14,7 @@ export interface ValveConfig {
   enabled: boolean
   lockedDisabled?: boolean
   disabledReason?: string
-  schedule: {
+  schedule?: {
     mode: 'daily' | 'weekly' | 'interval' | 'custom'
     days: string[]
     times?: string[]
@@ -41,11 +41,7 @@ export function ValveConfigList() {
       name: "Válvula 1",
       zone: "Jardín Frontal",
       enabled: true,
-      schedule: {
-        mode: 'daily',
-        days: ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
-        times: ["06:00"],
-      },
+      schedule: undefined,
       flowRate: {
         min: 8,
         max: 15,
@@ -62,11 +58,7 @@ export function ValveConfigList() {
       name: "Válvula 2",
       zone: "Jardín Trasero",
       enabled: true,
-      schedule: {
-        mode: 'weekly',
-        days: ["Lun", "Mié", "Vie", "Dom"],
-        startTime: "06:00",
-      },
+      schedule: undefined,
       flowRate: {
         min: 10,
         max: 20,
@@ -83,13 +75,7 @@ export function ValveConfigList() {
       name: "Válvula 3",
       zone: "Huerto",
       enabled: true,
-      schedule: {
-        mode: 'interval',
-        days: [],
-        intervalDays: 2,
-        intervalHours: 0,
-        startTime: "18:00",
-      },
+      schedule: undefined,
       flowRate: {
         min: 5,
         max: 12,
@@ -108,11 +94,7 @@ export function ValveConfigList() {
       enabled: false,
       lockedDisabled: true,
       disabledReason: "Deshabilitada por sistema por problemas de hardware",
-      schedule: {
-        mode: 'weekly',
-        days: ["Lun", "Mié", "Vie"],
-        startTime: "18:00",
-      },
+      schedule: undefined,
       flowRate: {
         min: 8,
         max: 15,
@@ -159,14 +141,23 @@ export function ValveConfigList() {
     return () => { mounted = false }
   }, [])
 
-  // Handle save event from header; persist valves list (ids, enabled, name) to Mongo via /api/config
+  // Handle save event from header; persist valves list to device and per-valve configs (with schedule) to DB via /api/config
   useEffect(() => {
     const onSave = async () => {
       try {
         const valves = configs.map(c => ({ id: toDeviceValve(c.id as any), enabled: c.enabled, name: c.name, zone: c.zone }))
           .filter(v => Number.isFinite(v.id) && v.id >= 1 && v.id <= 8)
 
-        const payload = { valves }
+        // Include full per-valve schedule for DB-only persistence (server will upsert 1 doc per valve)
+        const valveConfigs = configs.map(c => ({
+          id: toDeviceValve(c.id as any),
+          enabled: c.enabled,
+          name: c.name,
+          zone: c.zone,
+          schedule: c.schedule,
+        })).filter(v => Number.isFinite(v.id) && v.id >= 1 && v.id <= 8)
+
+        const payload = { valves, valveConfigs }
         const res = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
         const json = await res.json()
         if (json?.ok) toast.success('Configuración guardada')

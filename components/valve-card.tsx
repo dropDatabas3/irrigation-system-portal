@@ -12,9 +12,10 @@ interface ValveCardProps {
   valve: Valve
   onToggle: () => void
   onClick: () => void
+  showToggle?: boolean
 }
 
-export function ValveCard({ valve, onToggle, onClick }: ValveCardProps) {
+export function ValveCard({ valve, onToggle, onClick, showToggle = true }: ValveCardProps) {
   const getStatusColor = (status: Valve["status"]) => {
     switch (status) {
       case "active":
@@ -137,22 +138,25 @@ export function ValveCard({ valve, onToggle, onClick }: ValveCardProps) {
 
         {/* Control Switch and Settings Button */}
         <div className="flex items-center justify-between pt-2 border-t border-border gap-3 relative z-10">
-          <div className="flex items-center gap-2 flex-1">
-            <span className="text-sm font-medium text-foreground">Habilitada</span>
-            <Switch
-              checked={isEnabled}
-              onCheckedChange={() => onToggle()}
-              disabled={isLockedOff}
-              className="relative z-10"
-              title={offTitle}
-            />
-          </div>
+          {showToggle ? (
+            <div className="flex items-center gap-2 flex-1">
+              <span className="text-sm font-medium text-foreground">Habilitada</span>
+              <Switch
+                checked={isEnabled}
+                onCheckedChange={() => onToggle()}
+                disabled={isLockedOff}
+                className="relative z-10"
+                title={offTitle}
+              />
+            </div>
+          ) : (
+            <div className="text-xs text-muted-foreground flex-1">Para habilitar/deshabilitar, ve a Configuración</div>
+          )}
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={() => {
-              console.log("[v0] Valve 'Ver más' clicked:", valve.id)
               onClick()
             }}
             className="gap-2 bg-transparent relative z-10"

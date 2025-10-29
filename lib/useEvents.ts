@@ -36,6 +36,7 @@ export function useIrrigationEvents() {
   const [events, setEvents] = useState<EventMsg[]>([]);
   const [lastInfo, setLastInfo] = useState<any | null>(null);
   const esRef = useRef<EventSource | null>(null);
+  const bufferRef = useRef<{ pending: EventMsg[]; timer: number | null; latest: Partial<Record<EventMsg['type'], EventMsg>> }>({ pending: [], timer: null, latest: {} });
 
   useEffect(() => {
     const es = new EventSource('/api/events');
@@ -43,21 +44,48 @@ export function useIrrigationEvents() {
   es.onmessage = (e) => {
       try {
         const data: EventMsg = JSON.parse(e.data);
-        setEvents((prev: EventMsg[]) => {
-          const next = [...prev, data];
-          return next.slice(-100);
-        });
-        if (data.type === 'lwt') {
-          setOnline(data.payload?.toLowerCase?.() === 'online');
-        } else if (data.type === 'status') {
-          setLastStatus(data.payload);
-          setLastStatusTs((data as any).ts || Date.now());
-        } else if (data.type === 'result') {
-          setLastResult(data.payload);
-        } else if (data.type === 'config-ack') {
-          setLastConfigAck(data.payload);
-        } else if (data.type === 'info') {
-          setLastInfo(data.payload);
+        if (data.type === 'ping') return; // ignore keepalive
+        const buf = bufferRef.current;
+        buf.pending.push(data);
+        // track only the most recent per type for state pieces
+        if (data.type === 'lwt' || data.type === 'status' || data.type === 'result' || data.type === 'config-ack' || data.type === 'info') {
+          buf.latest[data.type] = data as any;
+        }
+        if (!buf.timer) {
+          buf.timer = window.setTimeout(() => {
+            const toApply = buf.pending.splice(0, buf.pending.length);
+            buf.timer = null;
+            const latest = buf.latest; // snapshot
+            buf.latest = {};
+            if (toApply.length) {
+              setEvents((prev: EventMsg[]) => {
+                const next = [...prev, ...toApply];
+                return next.slice(-100);
+              });
+            }
+            // Apply most recent state updates per type in a single batch
+            if (latest['lwt']) {
+              const l = latest['lwt'] as Extract<EventMsg, { type: 'lwt' }>;
+              setOnline(l.payload?.toLowerCase?.() === 'online');
+            }
+            if (latest['status']) {
+              const s = latest['status'] as Extract<EventMsg, { type: 'status' }>;
+              setLastStatus(s.payload);
+              setLastStatusTs((s as any).ts || Date.now());
+            }
+            if (latest['result']) {
+              const r = latest['result'] as Extract<EventMsg, { type: 'result' }>;
+              setLastResult(r.payload);
+            }
+            if (latest['config-ack']) {
+              const c = latest['config-ack'] as Extract<EventMsg, { type: 'config-ack' }>;
+              setLastConfigAck(c.payload);
+            }
+            if (latest['info']) {
+              const i = latest['info'] as Extract<EventMsg, { type: 'info' }>;
+              setLastInfo(i.payload);
+            }
+          }, 150);
         }
       } catch {}
     };

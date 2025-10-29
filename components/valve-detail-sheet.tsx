@@ -34,9 +34,11 @@ interface ValveDetailSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onUpdate: (valve: Valve) => void
+  onSelectValveId?: (id: string) => void
+  enabledValveIds?: string[]
 }
 
-export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveDetailSheetProps) {
+export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelectValveId, enabledValveIds }: ValveDetailSheetProps) {
   const [editedValve, setEditedValve] = useState(valve)
   const [isTesting, setIsTesting] = useState(false)
   // Control de habilitación separado del estado de ejecución (activa/inactiva)
@@ -235,15 +237,33 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto p-5">
-        <SheetHeader className="mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <SheetTitle className="text-2xl">{valve.name}</SheetTitle>
-              <p className="text-sm text-muted-foreground mt-1">{valve.zone}</p>
-            </div>
-            <Badge className={getStatusColor(valve.status)}>{getStatusText(valve.status)}</Badge>
-          </div>
-        </SheetHeader>
+        {/* Selector de válvula (solo válvulas habilitadas). La seleccionada se expande */}
+        <div className="mb-4 flex items-center gap-2">
+          {(enabledValveIds && enabledValveIds.length ? enabledValveIds : [valve.id]).map((id) => {
+            const selected = valve.id === id
+            const labelShort = id.toUpperCase() // V1, V2...
+            const num = id.replace(/^v/i, '')
+            const labelLong = `Válvula ${num}`
+            return (
+              <Button
+                key={id}
+                type="button"
+                size="sm"
+                variant={selected ? 'default' : 'outline'}
+                className={selected ? 'gradient-primary' : ''}
+                onClick={() => onSelectValveId && onSelectValveId(id)}
+              >
+                {selected ? labelLong : labelShort}
+              </Button>
+            )
+          })}
+        </div>
+        {/* Hidden title for a11y to satisfy Radix Dialog requirement */}
+        {(() => {
+          const num = String(valve.id).replace(/^v/i, '')
+          const hiddenTitle = `Válvula ${num}`
+          return <SheetTitle className="sr-only">{hiddenTitle}</SheetTitle>
+        })()}
 
         <Tabs defaultValue="metrics" className="relative z-10">
           <TabsList className="grid w-full grid-cols-2 relative z-10">
@@ -523,7 +543,6 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
               </CardContent>
             </Card>
 
-            {hasConfig && (
             <Card className="gradient-border">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -788,7 +807,6 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate }: ValveD
                 )}
               </CardContent>
             </Card>
-            )}
 
             {/* Test Button */}
             <Card className="gradient-border">
