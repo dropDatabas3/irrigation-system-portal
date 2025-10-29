@@ -45,7 +45,7 @@ export function LoginForm() {
           <Droplets className="w-8 h-8 text-primary-foreground" />
         </div>
         <div>
-          <CardTitle className="text-2xl font-bold text-balance">Sistema de Riego Inteligente</CardTitle>
+          <CardTitle className="text-2xl font-bold text-balance">PinneApple Grow</CardTitle>
           <CardDescription className="text-muted-foreground mt-2">
             Ingresa tus credenciales para acceder al portal
           </CardDescription>
