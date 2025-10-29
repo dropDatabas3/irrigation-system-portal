@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -31,6 +31,8 @@ export function HistoryTable() {
   const [items, setItems] = useState<EventItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [total, setTotal] = useState(0)
+  const abortRef = useRef<AbortController | null>(null)
 
   // Filters
   const [eventType, setEventType] = useState<'all' | 'result' | 'config-ack'>('all')
@@ -44,51 +46,42 @@ export function HistoryTable() {
   const [pageSize, setPageSize] = useState(10)
   const [q, setQ] = useState('')
 
+  // Fetch paginated results with server-side filters
   useEffect(() => {
-    let cancelled = false
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
     setLoading(true)
     setError(null)
-    ;(async () => {
-      try {
-        const res = await fetch('/api/history?limit=1000', { cache: 'no-store' })
+    const params = new URLSearchParams()
+    params.set('page', String(page))
+    params.set('pageSize', String(pageSize))
+    if (eventType !== 'all') params.set('type', eventType)
+    if (valveFilter) params.set('valve', String(valveFilter))
+    if (originFilter !== 'all') params.set('origin', originFilter) // reserved for future use
+    if (fromTs) params.set('from', fromTs)
+    if (toTs) params.set('to', toTs)
+    if (q.trim()) params.set('q', q.trim())
+    fetch(`/api/history?${params.toString()}`, { cache: 'no-store', signal: controller.signal })
+      .then(async (res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const json = await res.json()
-        if (!cancelled && json?.ok) setItems(Array.isArray(json.items) ? json.items : [])
-      } catch (e: any) {
-        if (!cancelled) setError(e?.message || 'Error al cargar')
-      }
-      if (!cancelled) setLoading(false)
-    })()
-    return () => { cancelled = true }
-  }, [])
-
-  const filtered: EventItem[] = useMemo(() => {
-    let out = items.slice()
-    if (eventType !== 'all') out = out.filter(it => it.type === eventType)
-    if (valveFilter) out = out.filter(it => it?.type !== 'result' ? true : Number(it?.payload?.valve) === valveFilter)
-    if (originFilter !== 'all') out = out.filter(() => true) // placeholder for future origin field
-    if (fromTs) {
-      const from = new Date(fromTs).getTime()
-      out = out.filter(it => Number(it?.ts) >= from)
-    }
-    if (toTs) {
-      const to = new Date(toTs).getTime()
-      out = out.filter(it => Number(it?.ts) <= to)
-    }
-    if (q.trim()) {
-      const s = q.trim().toLowerCase()
-      out = out.filter((it) => {
-        try {
-          const when = new Date(Number(it?.ts)).toLocaleString().toLowerCase()
-          const type = String(it?.type || '').toLowerCase()
-          const valve = String((it?.payload?.valve ?? '')).toLowerCase()
-          const payloadStr = JSON.stringify(it?.payload || {}).toLowerCase()
-          return when.includes(s) || type.includes(s) || valve.includes(s) || payloadStr.includes(s)
-        } catch { return false }
+        return res.json()
       })
-    }
-    return out
-  }, [items, eventType, valveFilter, originFilter, fromTs, toTs, q])
+      .then((json) => {
+        if (!json?.ok) throw new Error('Respuesta inválida')
+        setItems(Array.isArray(json.items) ? json.items : [])
+        setTotal(Number(json.total || 0))
+      })
+      .catch((e: any) => {
+        if (e?.name === 'AbortError') return
+        setError(e?.message || 'Error al cargar')
+      })
+      .finally(() => setLoading(false))
+    return () => controller.abort()
+  }, [page, pageSize, eventType, valveFilter, originFilter, fromTs, toTs, q])
+
+  // Items now come pre-filtered from the server
+  const filtered: EventItem[] = useMemo(() => items, [items])
 
   // Map to rows after filtering
   const mapped: Row[] = useMemo(() => {
@@ -129,11 +122,8 @@ export function HistoryTable() {
     return out
   }, [filtered])
 
-  const totalPages = Math.max(1, Math.ceil(mapped.length / pageSize))
-  const pageRows = useMemo(() => {
-    const start = (page - 1) * pageSize
-    return mapped.slice(start, start + pageSize)
-  }, [mapped, page, pageSize])
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  const pageRows = mapped // already paginated by server
 
   return (
     <Card className="gradient-border">
@@ -256,7 +246,7 @@ export function HistoryTable() {
 
         {/* Pagination */}
         <div className="flex items-center justify-between mt-3">
-          <div className="text-xs text-muted-foreground">Página {page} de {totalPages} • {mapped.length} eventos</div>
+          <div className="text-xs text-muted-foreground">Página {page} de {totalPages} • {total} eventos</div>
           <div className="flex items-center gap-2">
             <Button type="button" variant="outline" className="h-8 bg-transparent" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Anterior</Button>
             <Button type="button" variant="outline" className="h-8 bg-transparent" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Siguiente</Button>
