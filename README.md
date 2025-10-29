@@ -97,4 +97,19 @@ es.onmessage = (e) => {
 - When configured, the portal will persist:
   - POSTed configs in `configs` collection.
   - Incoming device events (status/result/lwt/config-ack) in `events` and `configAcks`.
-- Fetch recent history via `GET /api/history?type=result&limit=50`.
+- Fetch recent history via:
+  - `GET /api/history?type=result&limit=50` (back-compat, most recent N)
+  - `GET /api/history?page=1&pageSize=50&type=result&valve=1&from=ISO&to=ISO&q=text` (paginated with filters)
+
+## Performance notes
+
+To reduce memory and CPU usage on Vercel:
+
+- Mongo writes are throttled for chatty `status` events. Only changes (hash of relevant fields) or a periodic sample (60s) are persisted. Business events (`result`, `config-ack`, `lwt`) are always saved.
+- SSE client updates are batched: UI state is updated at most every ~150ms during bursts. Keepalive `ping` frames do not trigger re-renders.
+- Charts are rendered on the client via dynamic import to avoid server-side Recharts cost. The metrics page wraps charts in a client-only component.
+- Valve grid's periodic tick runs only while a valve is actively running, and at a slower 2000ms cadence.
+
+Scaling MQTT
+
+- Each serverless instance maintains its own MQTT connection. This is expected on Vercel. If you scale to many regions/instances and hit broker limits, consider consolidating ingestion into a single long-lived worker (or a small VM/container) that forwards events to the app via HTTP/WebSocket, or use a managed event bus.
