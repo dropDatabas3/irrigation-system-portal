@@ -18,25 +18,15 @@ function getAuthSecret(): Uint8Array {
 
 
 function getUsersFromEnv(): User[] {
-  // Only use AUTH_USERS_PLAINTEXT for now (array of { username, password })
-  const jsonPlain = process.env.AUTH_USERS_PLAINTEXT
-  if (jsonPlain) {
-    try {
-      const arr = JSON.parse(jsonPlain)
-      if (Array.isArray(arr)) {
-        return arr
-          .map((u) => {
-            const username = String(u.username || '')
-            const password = String(u.password || '')
-            if (!username || !password) return null
-            // Store password in cleartext for direct compare (no hash)
-            return { username, passwordHash: password }
-          })
-          .filter(Boolean) as User[]
-      }
-    } catch {}
-  }
-  return []
+  // Only use AUTH_USER1/AUTH_PASS1 and AUTH_USER2/AUTH_PASS2 (plain text)
+  const u1 = process.env.AUTH_USER1 || ''
+  const p1 = process.env.AUTH_PASS1 || ''
+  const u2 = process.env.AUTH_USER2 || ''
+  const p2 = process.env.AUTH_PASS2 || ''
+  const users: User[] = []
+  if (u1 && p1) users.push({ username: u1, passwordHash: p1 })
+  if (u2 && p2) users.push({ username: u2, passwordHash: p2 })
+  return users
 }
 
 export async function verifyCredentials(username: string, password: string): Promise<User | null> {
