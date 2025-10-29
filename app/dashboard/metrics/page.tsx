@@ -1,9 +1,12 @@
 import { MetricsHeader } from "@/components/metrics-header"
-import { WaterUsageChart } from "@/components/water-usage-chart"
-import { ValveActivityChart } from "@/components/valve-activity-chart"
+import dynamic from 'next/dynamic'
 import { HistoryTable } from "@/components/history-table"
 import { MetricsOverview } from "@/components/metrics-overview"
-import { LitersPerDayChart } from "@/components/liters-per-day-chart"
+
+// Client-only charts to reduce server memory/TTFB
+const WaterUsageChart = dynamic(() => import('@/components/water-usage-chart').then(m => m.WaterUsageChart), { ssr: false })
+const ValveActivityChart = dynamic(() => import('@/components/valve-activity-chart').then(m => m.ValveActivityChart), { ssr: false })
+const LitersPerDayChart = dynamic(() => import('@/components/liters-per-day-chart').then(m => m.LitersPerDayChart), { ssr: false })
 
 export default function MetricsPage() {
   return (
