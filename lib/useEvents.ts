@@ -43,10 +43,13 @@ export function useIrrigationEvents() {
   es.onmessage = (e) => {
       try {
         const data: EventMsg = JSON.parse(e.data);
-        setEvents((prev: EventMsg[]) => {
-          const next = [...prev, data];
-          return next.slice(-100);
-        });
+        // Ignore keepalive pings to avoid unnecessary re-renders
+        if (data.type !== 'ping') {
+          setEvents((prev: EventMsg[]) => {
+            const next = [...prev, data];
+            return next.slice(-100);
+          });
+        }
         if (data.type === 'lwt') {
           setOnline(data.payload?.toLowerCase?.() === 'online');
         } else if (data.type === 'status') {

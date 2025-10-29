@@ -26,9 +26,11 @@ export function LoginForm() {
     console.log("[v0] Form data extracted:", { username, password: "***" })
 
     try {
-      console.log("[v0] Calling login action...")
-      await login(username, password)
-      console.log("[v0] Login action completed successfully")
+      const res = await login(username, password)
+      if ((res as any)?.success === false) {
+        setError((res as any)?.error || 'Credenciales inválidas')
+        setIsLoading(false)
+      }
     } catch (err) {
       console.error("[v0] Login error:", err)
       setError("Error al iniciar sesión")

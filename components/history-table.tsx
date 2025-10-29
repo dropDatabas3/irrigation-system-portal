@@ -88,7 +88,7 @@ export function HistoryTable() {
       })
     }
     return out
-  }, [items, eventType, valveFilter, originFilter, fromTs, toTs])
+  }, [items, eventType, valveFilter, originFilter, fromTs, toTs, q])
 
   // Map to rows after filtering
   const mapped: Row[] = useMemo(() => {
@@ -133,7 +133,7 @@ export function HistoryTable() {
   const pageRows = useMemo(() => {
     const start = (page - 1) * pageSize
     return mapped.slice(start, start + pageSize)
-  }, [mapped, page])
+  }, [mapped, page, pageSize])
 
   return (
     <Card className="gradient-border">
