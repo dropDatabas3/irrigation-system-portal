@@ -17,7 +17,7 @@ function getAuthSecret(): Uint8Array {
 }
 
 
-function getUsersFromEnv(): User[] {
+export function getUsersFromEnv(): User[] {
   // Only use AUTH_USER1/AUTH_PASS1 and AUTH_USER2/AUTH_PASS2 (plain text)
   const u1 = process.env.AUTH_USER1 || ''
   const p1 = process.env.AUTH_PASS1 || ''
