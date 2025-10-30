@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Wifi, Rss, Server, HardDrive, Cpu, Activity, Settings, Network, Info, Copy, Check, ArrowLeft } from 'lucide-react';
+import { Wifi, Rss, Server, HardDrive, Cpu, Activity, Settings, Network, Info, Copy, Check, ArrowLeft, Clock } from 'lucide-react';
 
 function KeyValue({ label, value }: { label: string; value: any }) {
   return (
@@ -47,7 +47,7 @@ function CopyButton({ value, ariaLabel }: { value: string; ariaLabel: string }) 
 
 export default function ChipInfoPanel() {
   const router = useRouter();
-  const { online, lastInfo } = useIrrigationEvents();
+  const { online, lastInfo, lastStatus } = useIrrigationEvents();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [ssid, setSsid] = useState('');
@@ -61,6 +61,30 @@ export default function ChipInfoPanel() {
   const signal = Number.isFinite(rssi)
     ? rssi > -55 ? 'Excelente' : rssi > -67 ? 'Buena' : rssi > -80 ? 'Regular' : 'Débil'
     : '—';
+
+  const deviceTime = (() => {
+    const t = (lastStatus as any)?.time
+    if (!t) return null
+    // Firmware sends epoch seconds; format to local date/time
+    const ms = t > 1e12 ? t : t * 1000
+    try {
+      return new Date(ms).toLocaleString()
+    } catch {
+      return String(t)
+    }
+  })()
+
+  const timeSkewInfo = (() => {
+    const t = (lastStatus as any)?.time
+    if (!t) return null
+    const devMs = (t > 1e12 ? t : t * 1000) as number
+    const deltaSec = Math.round((devMs - Date.now()) / 1000)
+    const abs = Math.abs(deltaSec)
+    const sign = deltaSec >= 0 ? '+' : '-'
+    const mm = Math.floor(abs / 60)
+    const ss = abs % 60
+    return { text: `${sign}${mm}:${ss.toString().padStart(2,'0')} (desfase)`, warn: abs > 120 }
+  })()
 
   async function doCmd(cmd: Cmd) {
     setBusy(true); setErr(null);
@@ -84,14 +108,27 @@ export default function ChipInfoPanel() {
           <Info className="w-5 h-5 text-primary" />
           <h1 className="text-2xl font-semibold text-foreground">Información del Dispositivo</h1>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge className={online ? 'bg-emerald-500/15 text-emerald-300' : online === false ? 'bg-red-500/15 text-red-300' : 'bg-muted text-foreground'}>
-            {online === null ? 'Desconocido' : online ? 'Online' : 'Offline'}
-          </Badge>
-          <Button size="sm" variant="outline" className="bg-transparent" disabled={busy} onClick={() => doCmd({ action: 'chipInfo' })}>Actualizar info</Button>
-          <Button size="sm" variant="outline" className="bg-transparent" disabled={busy} onClick={() => doCmd({ action: 'startAp' })}>Iniciar portal AP</Button>
-        </div>
       </div>
+
+      {/* Acciones Rápidas */}
+      <Card className="gradient-border">
+        <CardContent className="p-2 py-0">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Button size="sm" variant="outline" className="bg-transparent" disabled={busy} onClick={() => doCmd({ action: 'chipInfo' })}>
+              Actualizar info
+            </Button>
+            <Button size="sm" variant="outline" className="bg-transparent" disabled={busy} onClick={() => doCmd({ action: 'startAp' })}>
+              Iniciar portal AP
+            </Button>
+            <Button size="sm" variant="outline" className="bg-transparent" disabled={busy} onClick={() => doCmd({ action: 'restart' })}>
+              Reiniciar placa
+            </Button>
+            <Button size="sm" variant="outline" className="bg-transparent" disabled={busy} onClick={() => doCmd({ action: 'syncTime' })}>
+              Sincronizar hora
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {err && (
         <div className="text-sm text-red-300 bg-red-900/30 border border-red-900/50 rounded p-2">{err}</div>
@@ -112,8 +149,15 @@ export default function ChipInfoPanel() {
         <>
           {/* Card 1: Estado y Conexión (Identidad, Wi‑Fi, MQTT) */}
           <Card className="gradient-border">
-            <CardHeader className="pb-3"><CardTitle className="text-base">Estado y Conexión</CardTitle></CardHeader>
-            <CardContent className="p-4 space-y-5">
+            <CardHeader className="pb-1 flex items-center gap-3">
+              <CardTitle className="text-base">
+                Estado y Conexión
+              </CardTitle>
+              <Badge className={online ? 'bg-emerald-500/15 text-emerald-300' : online === false ? 'bg-red-500/15 text-red-300' : 'bg-muted text-foreground'}>
+                {online === null ? 'Desconocido' : online ? 'Online' : 'Offline'}
+              </Badge>
+            </CardHeader>
+            <CardContent className="p-4 py-1 space-y-5">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 divide-y lg:divide-y-0 lg:divide-x lg:divide-border/50">
                 {/* Identidad + WiFi */}
                 <div className="space-y-2 lg:pr-4">
@@ -277,6 +321,28 @@ export default function ChipInfoPanel() {
                 </div>
                 <div className="text-xs text-muted-foreground">El dispositivo puede tardar unos segundos en reconectar.</div>
               </form>
+            </CardContent>
+          </Card>
+
+          {/* Hora del dispositivo */}
+          <Card className="gradient-border">
+            <CardContent className="p-5 sm:p-6">
+              <div className="flex items-center justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Hora del dispositivo</p>
+                  <p className="text-sm sm:text-lg font-bold text-foreground mt-1 sm:mt-2 truncate" title={deviceTime ?? '-' }>
+                    {deviceTime ?? '-'} {online === false && <span className="text-muted-foreground">(offline)</span>}
+                  </p>
+                  {timeSkewInfo && (
+                    <p className={`text-[10px] sm:text-xs mt-1 ${timeSkewInfo.warn ? 'text-red-500' : 'text-muted-foreground'}`}>
+                      Desfase: {timeSkewInfo.text}
+                    </p>
+                  )}
+                </div>
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-chart-4/10 flex items-center justify-center">
+                  <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-chart-4" />
+                </div>
+              </div>
             </CardContent>
           </Card>
         </>

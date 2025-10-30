@@ -4,6 +4,8 @@ export type Cmd =
   | { action: 'alloff' }
   | { action: 'chipInfo' }
   | { action: 'startAp' }
+  | { action: 'restart' }
+  | { action: 'syncTime' }
   | { action: 'wifiSet'; ssid: string; pass: string };
 
 export async function sendCmd(cmd: Cmd, opts: { signal?: AbortSignal } = {}) {

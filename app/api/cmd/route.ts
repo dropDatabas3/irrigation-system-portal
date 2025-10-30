@@ -35,6 +35,10 @@ export async function POST(req: Request) {
       payload = { action } as CmdPayload;
     } else if (action === 'startAp') {
       payload = { action } as CmdPayload;
+    } else if (action === 'restart') {
+      payload = { action } as CmdPayload;
+    } else if (action === 'syncTime') {
+      payload = { action } as CmdPayload;
     } else if (action === 'wifiSet') {
       const ssid = String(body?.ssid ?? '').trim();
       const pass = String(body?.pass ?? '').trim();

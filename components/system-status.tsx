@@ -105,7 +105,7 @@ export function SystemStatus() {
     return `${rssi} dBm (${quality})`
   })()
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 gap-4">
       {/* Conectividad */}
       <Card className="gradient-border">
         <CardContent className="p-5 sm:p-6">
@@ -146,67 +146,6 @@ export function SystemStatus() {
             </div>
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-primary/10 flex items-center justify-center">
               <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Válvulas habilitadas / en riego */}
-      <Card className="gradient-border">
-        <CardContent className="p-5 sm:p-6">
-          <div className="flex items-center justify-between">
-            <div className="min-w-0">
-              <p className="text-xs sm:text-sm text-muted-foreground">Estado de válvulas</p>
-              <p className="text-xl sm:text-2xl font-bold text-foreground mt-1 sm:mt-2 leading-none">
-                {enabledValves ?? '-'} habilitadas
-              </p>
-              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Regando ahora: {activeValvesCount}</p>
-            </div>
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-accent/10 flex items-center justify-center">
-              <Droplets className="w-5 h-5 sm:w-6 sm:h-6 text-accent" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* WiFi y memoria */}
-      <Card className="gradient-border">
-        <CardContent className="p-5 sm:p-6">
-          <div className="flex items-center justify-between">
-            <div className="min-w-0">
-              <p className="text-xs sm:text-sm text-muted-foreground">Wi‑Fi y memoria</p>
-              <div className="flex items-center gap-2 mt-1 sm:mt-2">
-                <SignalHigh className="w-4 h-4 text-chart-3" />
-                <p className="text-sm sm:text-base font-semibold text-foreground truncate" title={rssiInfo ?? '-' }>
-                  {rssiInfo ?? '-'}
-                </p>
-              </div>
-              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Heap: {lastStatus?.heap ?? '-'} bytes</p>
-            </div>
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-chart-3/10 flex items-center justify-center">
-              <Thermometer className="w-5 h-5 sm:w-6 sm:h-6 text-chart-3" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Hora del dispositivo */}
-      <Card className="gradient-border">
-        <CardContent className="p-5 sm:p-6">
-          <div className="flex items-center justify-between">
-            <div className="min-w-0">
-              <p className="text-xs sm:text-sm text-muted-foreground">Hora del dispositivo</p>
-              <p className="text-sm sm:text-lg font-bold text-foreground mt-1 sm:mt-2 truncate" title={deviceTime ?? '-' }>
-                {deviceTime ?? '-'} {online === false && <span className="text-muted-foreground">(offline)</span>}
-              </p>
-              {timeSkewInfo && (
-                <p className={`text-[10px] sm:text-xs mt-1 ${timeSkewInfo.warn ? 'text-red-500' : 'text-muted-foreground'}`}>
-                  Desfase: {timeSkewInfo.text}
-                </p>
-              )}
-            </div>
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-chart-4/10 flex items-center justify-center">
-              <Droplets className="w-5 h-5 sm:w-6 sm:h-6 text-chart-4" />
             </div>
           </div>
         </CardContent>
