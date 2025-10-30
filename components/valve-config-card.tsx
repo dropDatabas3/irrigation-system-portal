@@ -80,16 +80,16 @@ export function ValveConfigCard({ config, onUpdate }: ValveConfigCardProps) {
           <div className="space-y-4 p-4 rounded-lg bg-secondary/30 border border-border">
             <div className="flex items-center gap-2">
               <Clock className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold text-foreground">Programación</h3>
+              <h3 className="font-semibold text-foreground">Rutinas</h3>
             </div>
 
             {!config.schedule ? (
               <div className="p-4 rounded-lg bg-secondary/40 border border-border flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">No hay programa para esta válvula.</p>
+                <p className="text-sm text-muted-foreground">No hay rutina programada para esta válvula.</p>
                 <Button type="button" variant="outline" className="bg-transparent"
                   onClick={() => !locked && onUpdate({ schedule: createDefaultSchedule() })}
                   disabled={locked} title={disabledTitle}>
-                  <Plus className="w-4 h-4 mr-2" /> Crear programa
+                  <Plus className="w-4 h-4 mr-2" /> Crear rutina
                 </Button>
               </div>
             ) : (

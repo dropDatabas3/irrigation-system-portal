@@ -30,7 +30,7 @@ export function ConfigHeader() {
           </Button>
           <div>
             <h1 className="text-lg font-bold text-foreground">Configuración de Válvulas</h1>
-            <p className="text-xs text-muted-foreground">Personaliza cada zona de riego</p>
+            <p className="text-xs text-muted-foreground">Configura horarios, caudales y sensores para cada zona.</p>
           </div>
         </div>
 

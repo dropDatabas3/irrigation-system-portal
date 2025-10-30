@@ -92,7 +92,7 @@ export function QuickActions() {
             title="Ir a la configuración general"
           >
             <Settings className="w-5 h-5" />
-            <span className="text-sm font-medium">Configurar</span>
+            <span className="text-sm font-medium">Configuración</span>
             <span className="text-[10px] opacity-90">Opciones del sistema</span>
           </Button>
         </div>

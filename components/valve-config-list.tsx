@@ -97,19 +97,6 @@ export function ValveConfigList() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground">Configuración de Válvulas</h2>
-          <p className="text-sm text-muted-foreground mt-1">Configura horarios, caudales y sensores para cada zona. El sistema admite 4 válvulas; la V4 se encuentra deshabilitada por hardware.</p>
-        </div>
-        <div className="text-xs text-muted-foreground">
-          {(() => {
-            const enabled = configs.filter(c => c.enabled && c.id !== 'v4').length
-            return `Habilitadas: ${enabled} de 4`
-          })()}
-        </div>
-      </div>
-
       <div className="space-y-4">
         {configs.map((config) => (
           <ValveConfigCard key={config.id} config={config} onUpdate={(updates) => updateConfig(config.id, updates)} />
