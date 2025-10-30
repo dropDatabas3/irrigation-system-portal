@@ -15,7 +15,7 @@ export async function login(username: string, password: string) {
     cookieStore.set("session", token, getAuthCookieOptions())
     // Cleanup legacy cookie if present
     cookieStore.delete("isAuthenticated")
-    redirect("/dashboard")
+    return { success: true }
   } catch (error) {
     console.error("Login error:", error)
     const errorMessage = error instanceof Error ? error.message : "Unknown error"

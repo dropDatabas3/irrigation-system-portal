@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,6 +13,7 @@ import { login } from "@/app/actions/auth"
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -25,7 +27,9 @@ export function LoginForm() {
 
     try {
       const res = await login(username, password)
-      if ((res as any)?.success === false) {
+      if ((res as any)?.success === true) {
+        router.push("/dashboard")
+      } else if ((res as any)?.success === false) {
         setError((res as any)?.error || 'Credenciales inválidas')
         setIsLoading(false)
       }
