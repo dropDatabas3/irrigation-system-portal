@@ -18,7 +18,8 @@ export async function login(username: string, password: string) {
     redirect("/dashboard")
   } catch (error) {
     console.error("Login error:", error)
-    return { success: false, error: "Error interno del servidor" }
+    const errorMessage = error instanceof Error ? error.message : "Unknown error"
+    return { success: false, error: `Error interno: ${errorMessage}` }
   }
 }
 
