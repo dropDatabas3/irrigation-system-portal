@@ -74,10 +74,18 @@ export async function GET() {
       const col = db.collection('configs')
       const cur = col.find({ deviceId })
       const arr = await cur.toArray()
-      return arr
+      // Default: 4 valves disabled
+      const defaultValves = [1, 2, 3, 4].map(id => ({ id, enabled: false, name: undefined, zone: undefined }))
+      // Merge with existing configs
+      arr
         .filter(d => Number.isFinite(d?.valveId))
-        .sort((a, b) => a.valveId - b.valveId)
-        .map(d => ({ id: d.valveId, enabled: d.enabled !== false, name: d.name ?? undefined, zone: d.zone ?? undefined }))
+        .forEach(d => {
+          const idx = defaultValves.findIndex(v => v.id === d.valveId)
+          if (idx >= 0) {
+            defaultValves[idx] = { id: d.valveId, enabled: d.enabled !== false, name: d.name ?? undefined, zone: d.zone ?? undefined }
+          }
+        })
+      return defaultValves
     })
     return NextResponse.json({ ok: true, config: { valves: valves ?? [] }, ts: Date.now() })
   } catch (e: any) {

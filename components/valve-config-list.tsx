@@ -35,111 +35,35 @@ export interface ValveConfig {
 }
 
 export function ValveConfigList() {
-  const [configs, setConfigs] = useState<ValveConfig[]>([
-    {
-      id: "v1",
-      name: "Válvula 1",
-      zone: "Jardín Frontal",
-      enabled: true,
-      schedule: undefined,
-      flowRate: {
-        min: 8,
-        max: 15,
-        target: 12,
-      },
-      sensors: {
-        moisture: true,
-        temperature: false,
-        rain: true,
-      },
-    },
-    {
-      id: "v2",
-      name: "Válvula 2",
-      zone: "Jardín Trasero",
-      enabled: true,
-      schedule: undefined,
-      flowRate: {
-        min: 10,
-        max: 20,
-        target: 15,
-      },
-      sensors: {
-        moisture: true,
-        temperature: true,
-        rain: true,
-      },
-    },
-    {
-      id: "v3",
-      name: "Válvula 3",
-      zone: "Huerto",
-      enabled: true,
-      schedule: undefined,
-      flowRate: {
-        min: 5,
-        max: 12,
-        target: 8,
-      },
-      sensors: {
-        moisture: true,
-        temperature: false,
-        rain: false,
-      },
-    },
-    {
-      id: "v4",
-      name: "Válvula 4",
-      zone: "Reservada",
-      enabled: false,
-      lockedDisabled: true,
-      disabledReason: "Deshabilitada por sistema por problemas de hardware",
-      schedule: undefined,
-      flowRate: {
-        min: 8,
-        max: 15,
-        target: 10,
-      },
-      sensors: {
-        moisture: false,
-        temperature: false,
-        rain: false,
-      },
-    },
-  ])
+  const [configs, setConfigs] = useState<ValveConfig[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/config')
+      .then(res => res.json())
+      .then(data => {
+        if (data.ok && data.config?.valves) {
+          const loadedConfigs = data.config.valves.map((v: any) => ({
+            id: `v${v.id}`,
+            name: v.name || `Válvula ${v.id}`,
+            zone: v.zone || '',
+            enabled: v.enabled,
+            lockedDisabled: v.id === 4, // V4 always disabled
+            disabledReason: v.id === 4 ? "Deshabilitada por sistema por problemas de hardware" : undefined,
+            schedule: undefined, // Schedule not loaded here
+            flowRate: { min: 8, max: 15, target: 12 },
+            sensors: { moisture: true, temperature: false, rain: false },
+          }))
+          setConfigs(loadedConfigs)
+        }
+      })
+      .catch(err => console.error('Failed to load configs:', err))
+      .finally(() => setLoading(false))
+  }, [])
 
   const updateConfig = (id: string, updates: Partial<ValveConfig>) => {
     setConfigs(configs.map((config) => (config.id === id ? { ...config, ...updates } : config)))
   }
-
-  // Load initial valves config from API to reflect persisted state
-  useEffect(() => {
-    let mounted = true
-    ;(async () => {
-      try {
-        const res = await fetch('/api/config', { cache: 'no-store' })
-        const json = await res.json()
-        const valves: Array<{ id: number; enabled?: boolean; name?: string; zone?: string }>
-          = Array.isArray(json?.config?.valves) ? json.config.valves : []
-        if (mounted && valves.length) {
-          setConfigs(prev => prev.map(c => {
-            const idNum = toDeviceValve(c.id as any)
-            const v = valves.find(x => x.id === idNum)
-            if (!v) return c
-            // Valve 4: keep lockedDisabled regardless
-            const locked = c.id === 'v4' ? true : !!c.lockedDisabled
-            return {
-              ...c,
-              enabled: v.enabled !== false && !locked,
-              name: v.name ? v.name : c.name,
-              zone: v.zone ? v.zone : c.zone,
-            }
-          }))
-        }
-      } catch {}
-    })()
-    return () => { mounted = false }
-  }, [])
 
   // Handle save event from header; persist valves list to device and per-valve configs (with schedule) to DB via /api/config
   useEffect(() => {
