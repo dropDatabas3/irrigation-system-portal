@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { sendCmd } from "@/lib/api"
 import { toDeviceValve } from "@/lib/valves"
 import { buildJobs } from "@/lib/schedule"
+import { fetchConfigDedupe } from "@/lib/config-client"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -43,6 +44,9 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
   const [isTesting, setIsTesting] = useState(false)
   // Control de habilitación separado del estado de ejecución (activa/inactiva)
   const [enabled, setEnabled] = useState<boolean>(valve.enabled !== false)
+  const [saving, setSaving] = useState(false)
+  const [saveOk, setSaveOk] = useState<string | null>(null)
+  const [saveErr, setSaveErr] = useState<string | null>(null)
   const [metrics, setMetrics] = useState<null | {
     lastRun: { ts: number; liters: number; durationMs: number } | null
     seven: { liters: number; durationMs: number; runs: number }
@@ -51,6 +55,7 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
   const [loadingMetrics, setLoadingMetrics] = useState(false)
   const [hasConfig, setHasConfig] = useState<boolean>(false)
   const [hasValveJobs, setHasValveJobs] = useState<boolean>(false)
+  const [configFetched, setConfigFetched] = useState(false)
 
   const [scheduleMode, setScheduleMode] = useState<"daily" | "weekly" | "interval" | "custom">("daily")
   const [selectedDays, setSelectedDays] = useState<number[]>([1, 3, 5]) // 0=Domingo, 1=Lunes, etc.
@@ -58,6 +63,8 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
   const [intervalHours, setIntervalHours] = useState(0)
   const [scheduleTime, setScheduleTime] = useState("08:00")
   const [scheduleTimes, setScheduleTimes] = useState<string[]>(["08:00", "18:00"])
+  const [consecutiveWaterings, setConsecutiveWaterings] = useState(1)
+  const [wateringIntervalMinutes, setWateringIntervalMinutes] = useState(3)
 
   const [metricsDateRange, setMetricsDateRange] = useState<"week" | "month" | "year" | "custom">("week")
   const [customStartDate, setCustomStartDate] = useState("")
@@ -67,9 +74,22 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
   const deviceValve = toDeviceValve(valve.id as any)
   // Sync local state when valve prop changes or sheet opens
   useEffect(() => {
+    console.log('[valve-detail-sheet] valve changed to', valve.id, 'open:', open)
     setEditedValve(valve)
     setEnabled(valve.enabled !== false)
-  }, [valve, open])
+    // Reset form state when valve changes to prevent stale data
+    setScheduleMode('daily')
+    setSelectedDays([1, 3, 5])
+    setScheduleTimes(['08:00', '18:00'])
+    setScheduleTime('08:00')
+    setIntervalDays(2)
+    setIntervalHours(0)
+    setConsecutiveWaterings(1)
+    setWateringIntervalMinutes(3)
+    setHasValveJobs(false)
+    // Reset config fetch flag when sheet opens OR valve changes
+    setConfigFetched(false)
+  }, [valve.id, open])
 
   useEffect(() => {
     let cancelled = false
@@ -92,62 +112,119 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
     return () => { cancelled = true }
   }, [deviceValve, open])
 
-  // Detect if there is any saved config and whether this valve has jobs
+  // Detect if there is any saved config and whether this valve has a schedule saved
   useEffect(() => {
+    // Only fetch once per sheet open to avoid pending requests
+    if (configFetched) {
+      console.log('[sheet detection] already fetched config, skipping')
+      return
+    }
     let cancelled = false
     ;(async () => {
       try {
-        const res = await fetch('/api/config', { cache: 'no-store' })
-        const json = await res.json()
+        const json = await fetchConfigDedupe()
         const cfg = json?.config || {}
-        const hasCfg = !!cfg && (Array.isArray(cfg?.valves) || Array.isArray(cfg?.jobs))
-        const jobsArr: any[] = Array.isArray(cfg?.jobs) ? cfg.jobs : []
-        const hasJobsForValve = jobsArr.some(j => Number(j?.valve) === deviceValve)
+        const hasCfg = !!cfg && Array.isArray(cfg?.valves)
+        const valvesArr: any[] = Array.isArray(cfg?.valves) ? cfg.valves : []
+        const entry = valvesArr.find(v => Number(v?.id) === deviceValve)
+        const hasJobsForValve = !!entry && !!entry.schedule
         if (!cancelled) {
           setHasConfig(!!hasCfg)
           setHasValveJobs(!!hasJobsForValve)
+          setConfigFetched(true)
+          // Populate form fields from saved schedule if available
+          if (hasJobsForValve && entry.schedule) {
+            const sch = entry.schedule
+            console.log('[sheet detection] loaded schedule for valve', deviceValve, ':', JSON.stringify(sch))
+            setScheduleMode(sch.mode || 'daily')
+            if (sch.days && Array.isArray(sch.days)) setSelectedDays(sch.days)
+            if (sch.times && Array.isArray(sch.times)) setScheduleTimes(sch.times)
+            if (sch.startTime) setScheduleTime(sch.startTime)
+            if (Number.isFinite(sch.intervalDays)) setIntervalDays(Number(sch.intervalDays))
+            if (Number.isFinite(sch.intervalHours)) setIntervalHours(Number(sch.intervalHours))
+            if (Number.isFinite(sch.consecutiveWaterings)) setConsecutiveWaterings(Number(sch.consecutiveWaterings))
+            if (Number.isFinite(sch.wateringIntervalMinutes)) setWateringIntervalMinutes(Number(sch.wateringIntervalMinutes))
+            if (Number.isFinite(sch.liters)) {
+              // Load water amount and determine appropriate unit
+              const liters = Number(sch.liters)
+              if (liters < 1) {
+                // Use ml for amounts under 1L
+                setEditedValve(prev => ({ ...prev, waterAmount: Math.round(liters * 1000), waterUnit: 'ml' }))
+              } else {
+                // Use L for 1L and above
+                setEditedValve(prev => ({ ...prev, waterAmount: liters, waterUnit: 'L' }))
+              }
+            }
+          } else {
+            console.log('[sheet detection] no schedule found for valve', deviceValve)
+          }
         }
-      } catch {
-        if (!cancelled) { setHasConfig(false); setHasValveJobs(false) }
+      } catch (err) {
+        console.error('[sheet detection] failed:', err)
+        if (!cancelled) { setHasConfig(false); setHasValveJobs(false); setConfigFetched(true) }
       }
     })()
     return () => { cancelled = true }
-  }, [deviceValve, open])
+  }, [deviceValve, open]) // ❌ REMOVED configFetched from deps to avoid infinite loop
+
+  const buildSchedulePayload = () => {
+    // Construir un objeto "schedule" compatible con el API (normalizeSchedule)
+    // ALWAYS store in LITERS (convert ml to L if needed)
+    let litersValue = Number(editedValve.waterAmount) || 0
+    if (editedValve.waterUnit === 'ml') {
+      litersValue = litersValue / 1000 // Convert ml to L
+    }
+    console.log('[buildSchedulePayload] mode:', scheduleMode, 'waterAmount:', editedValve.waterAmount, editedValve.waterUnit, '=> liters:', litersValue)
+    
+    if (scheduleMode === 'daily') {
+      return { mode: 'daily', times: (scheduleTimes.length ? scheduleTimes : ['08:00']).slice(0, 6), liters: litersValue }
+    }
+    if (scheduleMode === 'weekly') {
+      return { mode: 'weekly', days: selectedDays, startTime: scheduleTime || '08:00', liters: litersValue }
+    }
+    if (scheduleMode === 'interval') {
+      const payload: any = {
+        mode: 'interval',
+        intervalDays: Number(intervalDays) || 0,
+        intervalHours: Number(intervalHours) || 0,
+        startTime: scheduleTime || '08:00',
+        liters: litersValue,
+      }
+      if (scheduleTimes && scheduleTimes.length) payload.times = scheduleTimes.slice(0, 6)
+      if (consecutiveWaterings > 1) {
+        payload.consecutiveWaterings = consecutiveWaterings
+        payload.wateringIntervalMinutes = wateringIntervalMinutes
+      }
+      return payload
+    }
+    if (scheduleMode === 'custom') {
+      return { mode: 'custom', days: selectedDays, times: (scheduleTimes.length ? scheduleTimes : ['08:00']).slice(0, 6), liters: litersValue }
+    }
+    return undefined
+  }
 
   const handleSave = async () => {
+    setSaving(true)
+    setSaveOk(null)
+    setSaveErr(null)
     try {
+      console.log('[handleSave] enabled:', enabled, 'hasValveJobs:', hasValveJobs)
       // 1) Update UI state immediately
       onUpdate(editedValve)
 
-      // 2) Build jobs for this valve from current scheduling controls
-      const liters = editedValve.waterUnit === 'ml' ? Number(editedValve.waterAmount) / 1000 : Number(editedValve.waterAmount)
-      const { jobs } = buildJobs({
-        valveId: editedValve.id as any,
-        liters: liters,
-        mode: scheduleMode,
-        scheduleTimes: scheduleMode === 'daily'
-          ? scheduleTimes
-          : (scheduleMode === 'custom'
-            ? scheduleTimes
-            : (scheduleMode === 'interval' ? scheduleTimes : undefined)),
-        selectedDays: scheduleMode === 'weekly' || scheduleMode === 'custom' ? selectedDays : undefined,
-        weeklyTime: scheduleMode === 'weekly' ? scheduleTime : undefined,
-        intervalDays: scheduleMode === 'interval' ? intervalDays : undefined,
-        intervalHours: scheduleMode === 'interval' ? intervalHours : undefined,
-        startTime: scheduleMode === 'interval' ? scheduleTime : undefined,
-        horizonDays: 7,
-      })
+      // 2) Construir schedule para esta válvula (persistencia en DB)
+      const schedule = hasValveJobs ? buildSchedulePayload() : undefined
+      console.log('[handleSave] schedule to save:', JSON.stringify(schedule))
 
       // 3) Merge with existing config so we don't wipe other valves' schedules/metadata
       let baseJobs: any[] = []
-      let baseValves: Array<{ id: number; enabled?: boolean; name?: string; zone?: string }> = []
+      let baseValves: Array<{ id: number; enabled?: boolean; name?: string; zone?: string; schedule?: any }> = []
       try {
-        const res = await fetch('/api/config', { method: 'GET' })
-        if (res.ok) {
-          const data = await res.json()
+        const data = await fetchConfigDedupe()
+        if (data?.ok) {
           const cfg = data?.config
           const arr = Array.isArray(cfg?.jobs) ? cfg.jobs : []
-          // keep jobs for other valves only
+          // keep jobs for other valves only (si existieran en futuras versiones)
           baseJobs = arr.filter((j: any) => Number(j?.valve) !== toDeviceValve(editedValve.id as any))
           const valvesArr: Array<any> = Array.isArray(cfg?.valves) ? cfg.valves : []
           // keep valves metadata for other valves only
@@ -155,26 +232,47 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
         }
       } catch {}
 
-      const merged = [...baseJobs, ...jobs]
+      const merged = [...baseJobs]
       merged.sort((a: any, b: any) => (a?.at || 0) - (b?.at || 0))
 
       // 4) Build valves array update for this valve (habilitada/deshabilitada + nombre/zona)
       const devValve = toDeviceValve(editedValve.id as any)
       const updatedValves = [
         ...baseValves,
-        { id: devValve, enabled, name: editedValve.name, zone: editedValve.zone },
+        { id: devValve, enabled, name: editedValve.name, zone: editedValve.zone, schedule },
       ]
+      console.log('[handleSave] sending valves:', JSON.stringify(updatedValves))
 
-      // 5) Send config/set with merged jobs and valves
-      await fetch('/api/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobs: merged, valves: updatedValves }),
-      })
-
-      onOpenChange(false)
+      // 5) Send config/set with merged jobs and valves (with timeout)
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 8000) // 8s timeout for save
+      try {
+        const postRes = await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jobs: merged, valves: updatedValves }),
+          signal: controller.signal,
+        })
+        clearTimeout(timeoutId)
+        const ok = postRes.ok
+        if (ok) {
+          setSaveOk(hasValveJobs ? 'Rutina creada correctamente' : 'Cambios guardados')
+          console.log('[handleSave] success')
+          // Opción: cerrar automáticamente después de una breve confirmación
+          // setTimeout(() => onOpenChange(false), 800)
+        } else {
+          const j = await postRes.json().catch(() => null)
+          throw new Error(j?.error || 'Error al guardar la configuración')
+        }
+      } catch (fetchErr) {
+        clearTimeout(timeoutId)
+        throw fetchErr
+      }
     } catch (e) {
-      console.error('save valve config failed', e)
+      console.error('[handleSave] save valve config failed', e)
+      setSaveErr((e as any)?.message || 'Error al guardar')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -496,53 +594,6 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
               </CardContent>
             </Card>
 
-            {/* Water Amount Configuration */}
-            <Card className="gradient-border">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Waves className="w-5 h-5 text-cyan-500" />
-                  Cantidad de Agua por Riego
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 relative z-10">
-                <div className="space-y-2">
-                  <Label>Unidad de Medida</Label>
-                  <Select
-                    value={editedValve.waterUnit}
-                    onValueChange={(value: "L" | "ml") => setEditedValve({ ...editedValve, waterUnit: value })}
-                  >
-                    <SelectTrigger className="relative z-10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="z-100">
-                      <SelectItem value="L">Litros (L)</SelectItem>
-                      <SelectItem value="ml">Mililitros (ml)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label>
-                      Cantidad: {editedValve.waterAmount} {editedValve.waterUnit}
-                    </Label>
-                  </div>
-                  <Slider
-                    value={[editedValve.waterAmount]}
-                    onValueChange={([value]) => setEditedValve({ ...editedValve, waterAmount: value })}
-                    min={editedValve.waterUnit === "L" ? 1 : 100}
-                    max={editedValve.waterUnit === "L" ? 200 : 5000}
-                    step={editedValve.waterUnit === "L" ? 1 : 50}
-                    className="w-full relative z-10"
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{editedValve.waterUnit === "L" ? "1 L" : "100 ml"}</span>
-                    <span>{editedValve.waterUnit === "L" ? "200 L" : "5000 ml"}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
             <Card className="gradient-border">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -562,6 +613,51 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
 
                 {hasValveJobs && (
                   <>
+                    {/* Water Amount Configuration - Moved inside schedule block */}
+                    <div className="p-4 rounded-lg bg-secondary/30 border border-border">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Waves className="w-5 h-5 text-cyan-500" />
+                        <span className="text-sm font-semibold text-foreground">Cantidad de Agua por Riego</span>
+                      </div>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>Unidad de Medida</Label>
+                          <Select
+                            value={editedValve.waterUnit}
+                            onValueChange={(value: "L" | "ml") => setEditedValve({ ...editedValve, waterUnit: value })}
+                          >
+                            <SelectTrigger className="relative z-10">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="z-100">
+                              <SelectItem value="L">Litros (L)</SelectItem>
+                              <SelectItem value="ml">Mililitros (ml)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label>
+                              Cantidad: {editedValve.waterAmount} {editedValve.waterUnit}
+                            </Label>
+                          </div>
+                          <Slider
+                            value={[editedValve.waterAmount]}
+                            onValueChange={([value]) => setEditedValve({ ...editedValve, waterAmount: value })}
+                            min={editedValve.waterUnit === "L" ? 1 : 100}
+                            max={editedValve.waterUnit === "L" ? 200 : 5000}
+                            step={editedValve.waterUnit === "L" ? 1 : 50}
+                            className="w-full relative z-10"
+                          />
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>{editedValve.waterUnit === "L" ? "1 L" : "100 ml"}</span>
+                            <span>{editedValve.waterUnit === "L" ? "200 L" : "5000 ml"}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Schedule Mode Selection */}
                     <div className="space-y-2">
                       <Label>Modo de Programación</Label>
@@ -697,44 +793,49 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
                             className="relative z-10"
                           />
                         </div>
-                        {/* Optional: multiple times per watering day */}
-                        <div className="space-y-2">
-                          <Label className="mb-1 block">Horarios (en día de riego, opcional)</Label>
-                          <div className="space-y-3">
-                            {scheduleTimes.map((time, index) => (
-                              <div key={index} className="flex items-center gap-2">
-                                <Input
-                                  type="time"
-                                  value={time}
-                                  onChange={(e) => updateScheduleTime(index, e.target.value)}
-                                  className="relative z-10"
-                                />
-                                {scheduleTimes.length > 1 && (
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => removeScheduleTime(index)}
-                                    className="relative z-10"
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </Button>
-                                )}
-                              </div>
-                            ))}
-                            {scheduleTimes.length < 6 && (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={addScheduleTime}
-                                className="w-full relative z-10 bg-transparent"
-                              >
-                                <Plus className="w-4 h-4 mr-2" />
-                                Agregar Horario
-                              </Button>
-                            )}
-                            <p className="text-xs text-muted-foreground">Ejemplo: cada 2 días a las 08:00 y 15:00.</p>
+                        
+                        {/* Consecutive waterings configuration */}
+                        <div className="p-3 rounded-lg bg-secondary/50 border border-border space-y-3">
+                          <p className="text-sm font-medium text-foreground">Riegos Consecutivos (opcional)</p>
+                          <p className="text-xs text-muted-foreground">
+                            Configura múltiples riegos seguidos cada vez que se cumple el intervalo
+                          </p>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="consecutive-waterings">Cantidad de Riegos</Label>
+                              <Input
+                                id="consecutive-waterings"
+                                type="number"
+                                min="1"
+                                max="10"
+                                value={consecutiveWaterings}
+                                onChange={(e) => setConsecutiveWaterings(Number(e.target.value))}
+                                className="relative z-10"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="watering-interval">Intervalo (minutos)</Label>
+                              <Input
+                                id="watering-interval"
+                                type="number"
+                                min="1"
+                                max="60"
+                                value={wateringIntervalMinutes}
+                                onChange={(e) => setWateringIntervalMinutes(Number(e.target.value))}
+                                className="relative z-10"
+                                disabled={consecutiveWaterings <= 1}
+                              />
+                            </div>
                           </div>
+                          {consecutiveWaterings > 1 && (
+                            <div className="p-2 rounded bg-primary/10 text-xs text-foreground">
+                              Se realizarán <strong>{consecutiveWaterings} riegos</strong> separados por{" "}
+                              <strong>{wateringIntervalMinutes} minutos</strong> cada vez que se cumpla el intervalo de{" "}
+                              {intervalDays > 0 && `${intervalDays} día${intervalDays > 1 ? "s" : ""}`}
+                              {intervalDays > 0 && intervalHours > 0 && " y "}
+                              {intervalHours > 0 && `${intervalHours} hora${intervalHours > 1 ? "s" : ""}`}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -834,10 +935,17 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
               </CardContent>
             </Card>
 
+            {/* Save feedback */}
+            {(saveOk || saveErr) && (
+              <div className={`mt-1 text-sm rounded border px-3 py-2 ${saveOk ? 'text-emerald-300 bg-emerald-900/20 border-emerald-800' : 'text-red-300 bg-red-900/20 border-red-800'}`}>
+                {saveOk || saveErr}
+              </div>
+            )}
+
             {/* Save Button */}
-            <Button type="button" onClick={handleSave} className="w-full gradient-primary relative z-10" size="lg">
+            <Button type="button" onClick={handleSave} className="w-full gradient-primary relative z-10" size="lg" disabled={saving}>
               <Save className="w-4 h-4 mr-2" />
-              Guardar Cambios
+              {saving ? 'Guardando…' : 'Guardar Cambios'}
             </Button>
           </TabsContent>
         </Tabs>

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Droplets, Info } from "lucide-react"
+import { fetchConfigDedupe } from "@/lib/config-client"
 
 // Shape of /api/config GET response (best-effort)
 interface ConfigDoc {
@@ -32,10 +33,8 @@ export function DashboardConfigSummary() {
     let mounted = true
     ;(async () => {
       try {
-        const res = await fetch("/api/config", { cache: "no-store" })
-        if (!res.ok) throw new Error("config fetch failed")
-        const json = await res.json()
-        if (mounted) setData(json)
+        const json = await fetchConfigDedupe()
+        if (mounted) setData(json as any)
       } catch {
         if (mounted) setData(null)
       } finally {

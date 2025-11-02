@@ -21,6 +21,9 @@ export interface ValveConfig {
     startTime?: string
     intervalDays?: number
     intervalHours?: number
+    liters?: number // Water amount in liters
+    consecutiveWaterings?: number // Number of consecutive waterings (1-10)
+    wateringIntervalMinutes?: number // Minutes between consecutive waterings (1-60)
   }
   flowRate: {
     min: number

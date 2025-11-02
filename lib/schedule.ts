@@ -12,6 +12,8 @@ type BuildJobsOpts = {
   intervalDays?: number
   intervalHours?: number
   startTime?: string // HH:mm for interval start
+  consecutiveWaterings?: number // Number of consecutive waterings per interval
+  wateringIntervalMinutes?: number // Minutes between consecutive waterings
   horizonDays?: number // how many days ahead to materialize
 }
 
@@ -60,14 +62,14 @@ export function buildJobs(opts: BuildJobsOpts) {
     if (stepMs <= 0) return { jobs }
 
     const times = (opts.scheduleTimes && opts.scheduleTimes.length > 0) ? opts.scheduleTimes.slice().sort() : null
+    const consecutiveCount = Math.max(1, opts.consecutiveWaterings ?? 1)
+    const wateringGapMs = Math.max(0, (opts.wateringIntervalMinutes ?? 0) * 60 * 1000)
 
-    if (times && dInt > 0) {
-      // Every N days: on each watering day, schedule all provided times
+    if (times && dInt > 0 && consecutiveCount === 1) {
+      // Every N days: on each watering day, schedule all provided times (original behavior)
       const dayMs = 24 * 3600 * 1000
-      // Anchor day/time: use provided startTime (or first time) on today, then jump by N days
       const anchorTime = opts.startTime || times[0] || '08:00'
       let dayCursor = hhmmToTodayMs(anchorTime, now)
-      // Move to the next watering day in the future (by full N-day steps)
       while (dayCursor <= Date.now()) dayCursor += dInt * dayMs
 
       const until = Date.now() + horizonDays * dayMs
@@ -80,6 +82,23 @@ export function buildJobs(opts: BuildJobsOpts) {
           if (jobs.length >= 100) break
         }
         dayCursor += dInt * dayMs
+      }
+    } else if (consecutiveCount > 1 && wateringGapMs > 0) {
+      // NEW: Consecutive waterings with interval between each
+      // Calculate main interval occurrences (every N days or N hours)
+      let at = hhmmToTodayMs(opts.startTime || '08:00', now)
+      if (at <= Date.now()) at += stepMs
+      const until = Date.now() + horizonDays * 24 * 3600 * 1000
+
+      while (at <= until && jobs.length < 100) {
+        // For each main interval occurrence, create consecutive waterings
+        for (let i = 0; i < consecutiveCount; i++) {
+          const wateringTime = at + (i * wateringGapMs)
+          if (wateringTime <= until && jobs.length < 100) {
+            pushJob(jobs, wateringTime, opts.valveId, liters)
+          }
+        }
+        at += stepMs
       }
     } else {
       // Fallback: single series separated by step (days+hours)

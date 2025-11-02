@@ -34,14 +34,22 @@ export async function GET(req: Request) {
     const deviceId = getDeviceId()
     const items = await withDb(async (db) => {
       const col = db.collection('events')
-  const match: any = { deviceId, type: 'result', ts: { $gte: s * 1000, $lt: e * 1000 }, 'payload.liters': { $gt: 0 } }
+      const match: any = { 
+        deviceId, 
+        type: 'result', 
+        ts: { $gte: s * 1000, $lt: e * 1000 },
+        $or: [
+          { 'payload.deliveredLiters': { $exists: true, $gt: 0 } },
+          { 'payload.liters': { $exists: true, $gt: 0 } }
+        ]
+      }
       if (Number.isFinite(valve)) match['payload.valve'] = valve
       const pipeline = [
         { $match: match },
         {
           $project: {
             day: { $dateToString: { format: '%Y-%m-%d', date: { $toDate: '$ts' } } },
-            liters: { $ifNull: ['$payload.liters', 0] },
+            liters: { $ifNull: ['$payload.deliveredLiters', { $ifNull: ['$payload.liters', 0] }] },
           },
         },
         { $group: { _id: '$day', liters: { $sum: '$liters' }, runs: { $sum: 1 } } },

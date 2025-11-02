@@ -7,6 +7,25 @@
 
 ## Overview
 
+Sistema completo de control de riego con ESP8266 y portal web Next.js.
+
+**Características principales:**
+- ✅ Control remoto vía MQTT (HiveMQ Cloud)
+- ✅ Programación de riegos: diario, semanal, intervalo, personalizado
+- ✅ **Riegos consecutivos**: 6 riegos cada 3 minutos
+- ✅ **Resiliencia offline**: Funciona hasta 7 días sin Internet
+- ✅ Auto-renovación de jobs cada 24 horas vía Cron
+- ✅ Medición precisa por caudalímetro YF-S401C
+- ✅ Almacenamiento persistente en MongoDB
+- ✅ Dashboard en tiempo real con métricas y gráficos
+
+**Documentación adicional:**
+- 📘 [CRON_SETUP.md](./CRON_SETUP.md) - Configuración del sistema de auto-renovación
+- 🧪 [CRON_TEST.md](./CRON_TEST.md) - Guía de testing del cron job
+- 📝 [CHANGELOG.md](./CHANGELOG.md) - Historial de cambios
+
+---
+
 This repository will stay in sync with your deployed chats on [v0.app](https://v0.app).
 Any changes you make to your deployed app will be automatically pushed to this repository from [v0.app](https://v0.app).
 

@@ -91,6 +91,7 @@ export function HistoryTable() {
       const when = Number.isFinite(ts) ? new Date(ts).toLocaleString() : '—'
       if (it?.type === 'result') {
         const v = Number(it?.payload?.valve)
+        // Prioritize deliveredLiters, fallback to liters
         const liters = Number(it?.payload?.deliveredLiters ?? it?.payload?.liters ?? 0)
         const durMs = Number(it?.payload?.durationMs ?? 0)
         if (!Number.isFinite(v) || liters <= 0 || durMs <= 0) continue
@@ -131,60 +132,59 @@ export function HistoryTable() {
         <CardTitle className="text-foreground">Historial de Actividad</CardTitle>
         <CardDescription>Datos reales desde el dispositivo y la base de datos</CardDescription>
       </CardHeader>
-      <CardContent>
-        {/* Filters */}
-        <div className="flex flex-wrap gap-3 items-end mb-3">
-          <div className="w-40">
-            <label className="text-xs text-muted-foreground">Evento</label>
-            <Select value={eventType} onValueChange={(v: any) => { setEventType(v); setPage(1) }}>
-              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="result">Riego</SelectItem>
-                <SelectItem value="config-ack">Configuración</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="w-40">
-            <label className="text-xs text-muted-foreground">Válvula</label>
-            <Select value={String(valveFilter)} onValueChange={(v: string) => { setValveFilter(Number(v)); setPage(1) }}>
-              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0">Todas</SelectItem>
-                <SelectItem value="1">V1</SelectItem>
-                <SelectItem value="2">V2</SelectItem>
-                <SelectItem value="3">V3</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="w-40">
-            <label className="text-xs text-muted-foreground">Origen</label>
-            <Select value={originFilter} onValueChange={(v: any) => { setOriginFilter(v); setPage(1) }}>
-              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="Sistema">Sistema</SelectItem>
-                <SelectItem value="Usuario">Usuario</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-end gap-2">
-            <div>
-              <label className="text-xs text-muted-foreground">Desde</label>
-              <Input type="datetime-local" value={fromTs} onChange={(e) => { setFromTs(e.target.value); setPage(1) }} className="h-8" />
+      <CardContent className="p-3 sm:p-4 md:p-6">
+        {/* Filters - Responsive Grid */}
+        <div className="space-y-3 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Evento</label>
+              <Select value={eventType} onValueChange={(v: any) => { setEventType(v); setPage(1) }}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="result">Riego</SelectItem>
+                  <SelectItem value="config-ack">Configuración</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Hasta</label>
-              <Input type="datetime-local" value={toTs} onChange={(e) => { setToTs(e.target.value); setPage(1) }} className="h-8" />
+
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Válvula</label>
+              <Select value={String(valveFilter)} onValueChange={(v: string) => { setValveFilter(Number(v)); setPage(1) }}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Todas</SelectItem>
+                  <SelectItem value="1">V1</SelectItem>
+                  <SelectItem value="2">V2</SelectItem>
+                  <SelectItem value="3">V3</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Buscar</label>
-              <Input placeholder="Texto libre" value={q} onChange={(e) => { setQ(e.target.value); setPage(1) }} className="h-8" />
+
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Origen</label>
+              <Select value={originFilter} onValueChange={(v: any) => { setOriginFilter(v); setPage(1) }}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="Sistema">Sistema</SelectItem>
+                  <SelectItem value="Usuario">Usuario</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div>
+
+            <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Por página</label>
               <Select value={String(pageSize)} onValueChange={(v: string) => { setPageSize(Number(v)); setPage(1) }}>
-                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="10">10</SelectItem>
                   <SelectItem value="25">25</SelectItem>
@@ -192,30 +192,84 @@ export function HistoryTable() {
                 </SelectContent>
               </Select>
             </div>
-            <Button type="button" variant="outline" className="h-8 bg-transparent" onClick={() => { setEventType('all'); setValveFilter(0); setOriginFilter('all'); setFromTs(''); setToTs(''); setQ(''); setPage(1) }}>Limpiar</Button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Desde</label>
+              <Input 
+                type="datetime-local" 
+                value={fromTs} 
+                onChange={(e) => { setFromTs(e.target.value); setPage(1) }} 
+                className="h-9" 
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Hasta</label>
+              <Input 
+                type="datetime-local" 
+                value={toTs} 
+                onChange={(e) => { setToTs(e.target.value); setPage(1) }} 
+                className="h-9" 
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Buscar</label>
+              <Input 
+                placeholder="Texto libre" 
+                value={q} 
+                onChange={(e) => { setQ(e.target.value); setPage(1) }} 
+                className="h-9" 
+              />
+            </div>
+
+            <div className="space-y-1 flex items-end">
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="h-9 w-full" 
+                onClick={() => { 
+                  setEventType('all'); 
+                  setValveFilter(0); 
+                  setOriginFilter('all'); 
+                  setFromTs(''); 
+                  setToTs(''); 
+                  setQ(''); 
+                  setPage(1) 
+                }}
+              >
+                Limpiar Filtros
+              </Button>
+            </div>
           </div>
         </div>
 
         {error && (
-          <div className="text-sm text-red-400 mb-3">Error: {error}</div>
+          <div className="text-sm text-red-400 mb-4 p-3 bg-red-500/10 rounded-lg border border-red-500/20">
+            Error: {error}
+          </div>
         )}
-        <div className="rounded-lg border border-border overflow-hidden">
+
+        {/* Responsive Table Wrapper */}
+        <div className="rounded-lg border border-border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-secondary/50">
-                <TableHead className="text-foreground">Fecha y Hora</TableHead>
-                <TableHead className="text-foreground">Válvula / Detalle</TableHead>
-                <TableHead className="text-foreground">Evento</TableHead>
-                <TableHead className="text-foreground">Duración</TableHead>
-                <TableHead className="text-foreground">Agua Usada</TableHead>
-                <TableHead className="text-foreground">Origen</TableHead>
+                <TableHead className="text-foreground whitespace-nowrap">Fecha y Hora</TableHead>
+                <TableHead className="text-foreground whitespace-nowrap">Válvula / Detalle</TableHead>
+                <TableHead className="text-foreground whitespace-nowrap">Evento</TableHead>
+                <TableHead className="text-foreground whitespace-nowrap">Duración</TableHead>
+                <TableHead className="text-foreground whitespace-nowrap">Agua Usada</TableHead>
+                <TableHead className="text-foreground whitespace-nowrap">Origen</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {pageRows.map((row) => (
                 <TableRow key={row.id} className="hover:bg-secondary/30">
-                  <TableCell className="font-medium text-foreground">{row.timestamp}</TableCell>
-                  <TableCell>
+                  <TableCell className="font-medium text-foreground whitespace-nowrap">{row.timestamp}</TableCell>
+                  <TableCell className="whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       {row.action === 'Riego' ? (
                         <Droplets className="w-4 h-4 text-primary" />
@@ -225,18 +279,25 @@ export function HistoryTable() {
                       <span className="text-foreground">{row.valve}</span>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">
                     <Badge variant={row.badgeVariant}>{row.action}</Badge>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{row.duration ?? '—'}</TableCell>
-                  <TableCell className="text-muted-foreground">{row.waterUsed ?? '—'}</TableCell>
-                  <TableCell className="text-muted-foreground">{row.actor ?? '—'}</TableCell>
+                  <TableCell className="text-muted-foreground whitespace-nowrap">{row.duration ?? '—'}</TableCell>
+                  <TableCell className="text-muted-foreground whitespace-nowrap">{row.waterUsed ?? '—'}</TableCell>
+                  <TableCell className="text-muted-foreground whitespace-nowrap">{row.actor ?? '—'}</TableCell>
                 </TableRow>
               ))}
               {(!loading && mapped.length === 0) && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-6">
-                    No hay eventos aún.
+                  <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">
+                    No hay eventos que coincidan con los filtros.
+                  </TableCell>
+                </TableRow>
+              )}
+              {loading && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">
+                    Cargando eventos...
                   </TableCell>
                 </TableRow>
               )}
@@ -245,11 +306,31 @@ export function HistoryTable() {
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between mt-3">
-          <div className="text-xs text-muted-foreground">Página {page} de {totalPages} • {total} eventos</div>
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 pt-4 border-t border-border">
+          <div className="text-xs sm:text-sm text-muted-foreground">
+            Página {page} de {totalPages} • {total} evento{total !== 1 ? 's' : ''}
+          </div>
           <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" className="h-8 bg-transparent" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Anterior</Button>
-            <Button type="button" variant="outline" className="h-8 bg-transparent" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Siguiente</Button>
+            <Button 
+              type="button" 
+              variant="outline" 
+              size="sm" 
+              className="h-9" 
+              disabled={page <= 1} 
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+            >
+              Anterior
+            </Button>
+            <Button 
+              type="button" 
+              variant="outline" 
+              size="sm" 
+              className="h-9" 
+              disabled={page >= totalPages} 
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            >
+              Siguiente
+            </Button>
           </div>
         </div>
       </CardContent>

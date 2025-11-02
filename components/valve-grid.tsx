@@ -6,6 +6,7 @@ import { ValveDetailSheet } from "@/components/valve-detail-sheet"
 import { sendCmd } from "@/lib/api"
 import { toDeviceValve } from "@/lib/valves"
 import { useIrrigationEvents } from "@/lib/useEvents"
+import { fetchConfigDedupe } from "@/lib/config-client"
 
 export interface Valve {
   id: string
@@ -151,8 +152,7 @@ export function ValveGrid() {
     let done = false
     ;(async () => {
       try {
-        const res = await fetch('/api/config', { cache: 'no-store' })
-        const json = await res.json()
+        const json = await fetchConfigDedupe()
         const arr: Array<{ id: number; enabled?: boolean; name?: string; zone?: string }> = Array.isArray(json?.config?.valves) ? json.config.valves : []
         if (!done && arr.length) {
           const s = new Set<number>()

@@ -1,11 +1,21 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Legend } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { useEffect, useMemo, useState } from "react"
+import { Droplets } from "lucide-react"
+import { useMetricsFilter } from "@/lib/metrics-filter-context"
 
 type HistItem = { ts?: number; payload?: any }
+
+const VALVE_COLORS = [
+  { dataKey: 'v1', color: 'hsl(222 47% 55%)', fillId: 'fillV1' },
+  { dataKey: 'v2', color: 'hsl(142 76% 45%)', fillId: 'fillV2' },
+  { dataKey: 'v3', color: 'hsl(38 92% 50%)', fillId: 'fillV3' },
+  { dataKey: 'v4', color: 'hsl(280 65% 60%)', fillId: 'fillV4' },
+  { dataKey: 'v5', color: 'hsl(348 83% 47%)', fillId: 'fillV5' },
+]
 
 const chartConfig = {
   usage: {
@@ -15,6 +25,7 @@ const chartConfig = {
 }
 
 export function WaterUsageChart() {
+  const { selectedValves, timeRange, customStart, customEnd } = useMetricsFilter()
   const [items, setItems] = useState<HistItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -25,7 +36,7 @@ export function WaterUsageChart() {
     setError(null)
     ;(async () => {
       try {
-        const res = await fetch('/api/history?type=result&limit=500', { cache: 'no-store' })
+        const res = await fetch('/api/history?type=result&limit=1000', { cache: 'no-store' })
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await res.json()
         if (!cancelled && data?.ok) setItems(Array.isArray(data.items) ? data.items : [])
@@ -39,66 +50,142 @@ export function WaterUsageChart() {
   }, [])
 
   const chartData = useMemo(() => {
-    const byDay = new Map<string, number>()
-    for (const it of items) {
+    // Calculate time range filter
+    let startDate: Date | null = null
+    if (timeRange === 'custom' && customStart) {
+      startDate = new Date(customStart)
+    } else if (timeRange !== 'custom') {
+      const days = Number(timeRange) || 30
+      startDate = new Date()
+      startDate.setDate(startDate.getDate() - days)
+    }
+
+    // Filter items by selected valves and time range
+    const filteredItems = items.filter(it => {
+      const valve = Number(it?.payload?.valve)
+      if (!Number.isFinite(valve) || !selectedValves.includes(valve)) return false
+      
+      // Apply time filter
+      if (startDate) {
+        const ts = Number(it?.ts)
+        if (!Number.isFinite(ts)) return false
+        if (ts < startDate.getTime()) return false
+      }
+      
+      return true
+    })
+
+    // Group by day and valve
+    const byDay = new Map<string, any>()
+    for (const it of filteredItems) {
       const ts = Number(it?.ts)
       if (!Number.isFinite(ts)) continue
+      const valve = Number(it?.payload?.valve)
       const liters = Number(it?.payload?.deliveredLiters ?? it?.payload?.liters ?? 0)
       const durMs = Number(it?.payload?.durationMs ?? 0)
-      // Filter to true irrigation results only
-      if (!(liters > 0 && durMs > 0)) continue
+      if (!(liters > 0)) continue
+      
       const d = new Date(ts)
       const key = d.toLocaleDateString()
-      byDay.set(key, (byDay.get(key) || 0) + liters)
+      if (!byDay.has(key)) {
+        byDay.set(key, { date: key })
+      }
+      const day = byDay.get(key)!
+      day[`v${valve}`] = (day[`v${valve}`] || 0) + liters
     }
-    const arr = Array.from(byDay.entries()).map(([date, usage]) => ({ date, usage }))
+    
+    const arr = Array.from(byDay.values())
     arr.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    return arr.slice(-14)
-  }, [items])
+    return arr
+  }, [items, selectedValves, timeRange, customStart])
+
+  const timeRangeDescription = useMemo(() => {
+    if (timeRange === 'custom') {
+      if (customStart && customEnd) {
+        return `Del ${new Date(customStart).toLocaleDateString()} al ${new Date(customEnd).toLocaleDateString()}`
+      }
+      return 'Período personalizado'
+    }
+    const days = Number(timeRange)
+    return `Últimos ${days} días`
+  }, [timeRange, customStart, customEnd])
 
   return (
     <Card className="gradient-border">
-      <CardHeader className="px-3 py-3 sm:p-4">
-        <CardTitle className="text-foreground">Consumo de Agua</CardTitle>
-        <CardDescription>Últimos 14 días</CardDescription>
+      <CardHeader className="p-4 sm:p-5 md:p-6">
+        <CardTitle className="text-lg sm:text-xl text-foreground">Consumo de Agua</CardTitle>
+        <CardDescription className="mt-1">{timeRangeDescription}</CardDescription>
       </CardHeader>
-      <CardContent className="p-3 sm:p-4">
+      <CardContent className="p-4 sm:p-5 md:p-6 pt-0">
         {error && (
-          <div className="h-60 sm:h-72 md:h-[300px] w-full flex items-center justify-center text-sm text-red-400">
-            Error: {error}
+          <div className="h-72 sm:h-80 md:h-96 w-full flex items-center justify-center">
+            <div className="text-center space-y-2">
+              <p className="text-sm text-red-400">Error al cargar datos</p>
+              <p className="text-xs text-muted-foreground">{error}</p>
+            </div>
           </div>
         )}
         {!error && loading && (
-          <div className="h-60 sm:h-72 md:h-[300px] w-full flex items-center justify-center text-sm text-muted-foreground">Cargando…</div>
+          <div className="h-72 sm:h-80 md:h-96 w-full flex items-center justify-center text-sm text-muted-foreground">
+            Cargando datos del consumo...
+          </div>
         )}
         {!error && !loading && chartData.length === 0 && (
-          <div className="h-60 sm:h-72 md:h-[300px] w-full flex items-center justify-center text-sm text-muted-foreground">No hay datos</div>
+          <div className="h-72 sm:h-80 md:h-96 w-full flex items-center justify-center">
+            <div className="text-center space-y-2">
+              <Droplets className="w-12 h-12 mx-auto text-muted-foreground/50" />
+              <p className="text-sm text-muted-foreground">No hay datos de consumo disponibles</p>
+            </div>
+          </div>
         )}
         {!error && !loading && chartData.length > 0 && (
-          <ChartContainer config={chartConfig} className="h-60 sm:h-72 md:h-[300px] w-full">
-            <AreaChart data={chartData} margin={{ top: 6, right: 6, left: 0, bottom: 0 }}>
+          <ChartContainer config={chartConfig} className="h-72 sm:h-80 md:h-96 w-full">
+            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
-                <linearGradient id="fillUsage" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                </linearGradient>
+                {VALVE_COLORS.map((vc) => (
+                  <linearGradient key={vc.fillId} id={vc.fillId} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={vc.color} stopOpacity={0.4} />
+                    <stop offset="95%" stopColor={vc.color} stopOpacity={0.05} />
+                  </linearGradient>
+                ))}
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
               <XAxis
                 dataKey="date"
                 tickLine={false}
                 axisLine={false}
-                tickMargin={6}
+                tickMargin={8}
                 tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
               />
               <YAxis
                 tickLine={false}
                 axisLine={false}
-                tickMargin={6}
+                tickMargin={8}
+                width={45}
                 tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
               />
               <ChartTooltip content={<ChartTooltipContent />} />
-              <Area type="monotone" dataKey="usage" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#fillUsage)" />
+              <Legend 
+                verticalAlign="top" 
+                height={36}
+                iconType="line"
+                formatter={(value) => `Válvula ${value.replace('v', '')}`}
+              />
+              {selectedValves.map((valve, idx) => {
+                const colorIdx = idx % VALVE_COLORS.length
+                const vc = VALVE_COLORS[colorIdx]
+                return (
+                  <Area
+                    key={valve}
+                    type="monotone"
+                    dataKey={`v${valve}`}
+                    stroke={vc.color}
+                    fill={`url(#${vc.fillId})`}
+                    strokeWidth={2.5}
+                    name={`v${valve}`}
+                  />
+                )
+              })}
             </AreaChart>
           </ChartContainer>
         )}

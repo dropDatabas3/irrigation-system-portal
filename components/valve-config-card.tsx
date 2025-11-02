@@ -39,6 +39,9 @@ export function ValveConfigCard({ config, onUpdate }: ValveConfigCardProps) {
     mode: 'daily' as const,
     days: ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
     times: ["08:00"],
+    liters: 1, // Default 1 liter
+    consecutiveWaterings: 1, // Default 1 watering
+    wateringIntervalMinutes: 3, // Default 3 minutes between consecutive waterings
   })
 
   return (
@@ -116,6 +119,37 @@ export function ValveConfigCard({ config, onUpdate }: ValveConfigCardProps) {
                   ))}
                 </div>
 
+            {/* Water Amount Field - ALWAYS shown when schedule exists */}
+            <div className="p-3 rounded-lg bg-secondary/40 border border-border space-y-3">
+              <div className="flex items-center gap-2">
+                <Droplets className="w-4 h-4 text-cyan-500" />
+                <Label className="text-sm font-semibold">Cantidad de Agua por Riego</Label>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">
+                  Litros: {(config.schedule!.liters ?? 0).toFixed(2)} L
+                </Label>
+                <Input
+                  type="number"
+                  min={0.1}
+                  max={200}
+                  step={0.1}
+                  value={config.schedule!.liters ?? 1}
+                  onChange={(e) => {
+                    const liters = Number(e.target.value) || 0
+                    onUpdate({ schedule: { ...config.schedule!, liters } as any })
+                  }}
+                  className="bg-secondary/50"
+                  disabled={locked}
+                  title={disabledTitle}
+                  placeholder="Litros de agua"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Ingrese la cantidad en litros (ej: 0.35 para 350ml, 1.5 para 1500ml)
+                </p>
+              </div>
+            </div>
+
             {/* Daily: multiple times */}
             {config.schedule!.mode === 'daily' && (
               <div className="space-y-3 mt-2">
@@ -183,9 +217,10 @@ export function ValveConfigCard({ config, onUpdate }: ValveConfigCardProps) {
               </div>
             )}
 
-            {/* Interval: days/hours + start time */}
+            {/* Interval: days/hours + start time + consecutive waterings */}
             {config.schedule!.mode === 'interval' && (
               <div className="space-y-3 mt-2">
+                <p className="text-sm text-muted-foreground">Riego cada cierto intervalo de tiempo</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label>Días</Label>
@@ -196,46 +231,61 @@ export function ValveConfigCard({ config, onUpdate }: ValveConfigCardProps) {
                     <Input type="number" min={0} max={23} value={config.schedule!.intervalHours ?? 0} onChange={(e) => onUpdate({ schedule: { ...config.schedule!, intervalHours: Number(e.target.value) } as any })} className="bg-secondary/50" disabled={locked} title={disabledTitle} />
                   </div>
                 </div>
+                <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+                  <p className="text-sm font-medium text-foreground">
+                    Frecuencia: Cada{" "}
+                    {(config.schedule!.intervalDays ?? 0) > 0 && `${config.schedule!.intervalDays} día${(config.schedule!.intervalDays ?? 0) > 1 ? "s" : ""}`}
+                    {(config.schedule!.intervalDays ?? 0) > 0 && (config.schedule!.intervalHours ?? 0) > 0 && " y "}
+                    {(config.schedule!.intervalHours ?? 0) > 0 && `${config.schedule!.intervalHours} hora${(config.schedule!.intervalHours ?? 0) > 1 ? "s" : ""}`}
+                  </p>
+                </div>
                 <div className="space-y-2">
                   <Label>Hora de inicio</Label>
                   <Input type="time" value={config.schedule!.startTime ?? '08:00'} onChange={(e) => onUpdate({ schedule: { ...config.schedule!, startTime: e.target.value } })} className="bg-secondary/50" disabled={locked} title={disabledTitle} />
                 </div>
-                {/* Optional: multiple times per watering day */}
-                <div className="space-y-2">
-                  <Label className="text-sm">Horarios (en día de riego, opcional)</Label>
-                  {(config.schedule!.times ?? ["08:00"]).map((time, i) => (
-                    <div key={i} className="flex items-center gap-2">
+                
+                {/* Consecutive waterings configuration */}
+                <div className="p-3 rounded-lg bg-secondary/50 border border-border space-y-3">
+                  <p className="text-sm font-medium text-foreground">Riegos Consecutivos (opcional)</p>
+                  <p className="text-xs text-muted-foreground">
+                    Configura múltiples riegos seguidos cada vez que se cumple el intervalo
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Cantidad de Riegos</Label>
                       <Input
-                        type="time"
-                        value={time}
-                        onChange={(e) => {
-                          const times = [...(config.schedule!.times ?? ["08:00"])];
-                          times[i] = e.target.value;
-                          onUpdate({ schedule: { ...config.schedule!, times } as any })
-                        }}
+                        type="number"
+                        min={1}
+                        max={10}
+                        value={config.schedule!.consecutiveWaterings ?? 1}
+                        onChange={(e) => onUpdate({ schedule: { ...config.schedule!, consecutiveWaterings: Number(e.target.value) } as any })}
                         className="bg-secondary/50"
                         disabled={locked}
                         title={disabledTitle}
                       />
-                      {(config.schedule!.times ?? []).length > 1 && (
-                        <Button type="button" variant="ghost" size="icon" onClick={() => {
-                          const times = [...(config.schedule!.times ?? ["08:00"])];
-                          times.splice(i, 1);
-                          onUpdate({ schedule: { ...config.schedule!, times } as any })
-                        }} disabled={locked} title={disabledTitle}>
-                          <X className="w-4 h-4" />
-                        </Button>
-                      )}
                     </div>
-                  ))}
-                  {((config.schedule!.times ?? []).length) < 6 && (
-                    <Button type="button" variant="outline" className="bg-transparent" onClick={() => {
-                      const times = [...(config.schedule!.times ?? [])];
-                      times.push("12:00");
-                      onUpdate({ schedule: { ...config.schedule!, times } as any })
-                    }} disabled={locked} title={disabledTitle}>
-                      <Plus className="w-4 h-4 mr-2" /> Agregar horario
-                    </Button>
+                    <div className="space-y-2">
+                      <Label>Intervalo (minutos)</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={60}
+                        value={config.schedule!.wateringIntervalMinutes ?? 3}
+                        onChange={(e) => onUpdate({ schedule: { ...config.schedule!, wateringIntervalMinutes: Number(e.target.value) } as any })}
+                        className="bg-secondary/50"
+                        disabled={locked || (config.schedule!.consecutiveWaterings ?? 1) <= 1}
+                        title={disabledTitle}
+                      />
+                    </div>
+                  </div>
+                  {(config.schedule!.consecutiveWaterings ?? 1) > 1 && (
+                    <div className="p-2 rounded bg-primary/10 text-xs text-foreground">
+                      Se realizarán <strong>{config.schedule!.consecutiveWaterings} riegos</strong> separados por{" "}
+                      <strong>{config.schedule!.wateringIntervalMinutes ?? 3} minutos</strong> cada vez que se cumpla el intervalo de{" "}
+                      {(config.schedule!.intervalDays ?? 0) > 0 && `${config.schedule!.intervalDays} día${(config.schedule!.intervalDays ?? 0) > 1 ? "s" : ""}`}
+                      {(config.schedule!.intervalDays ?? 0) > 0 && (config.schedule!.intervalHours ?? 0) > 0 && " y "}
+                      {(config.schedule!.intervalHours ?? 0) > 0 && `${config.schedule!.intervalHours} hora${(config.schedule!.intervalHours ?? 0) > 1 ? "s" : ""}`}
+                    </div>
                   )}
                 </div>
               </div>

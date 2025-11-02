@@ -4,6 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Clock, Droplets } from "lucide-react"
 import { useIrrigationEvents } from "@/lib/useEvents"
+import { useEffect, useState } from "react"
+import { fetchConfigDedupe } from "@/lib/config-client"
 
 function numValveToLabel(v: number) {
   if (v === 1) return "V1"
@@ -26,16 +28,37 @@ function formatWhen(tsSec: number) {
 
 export function NextRuns() {
   const { lastConfigAck } = useIrrigationEvents()
+  const [jobs, setJobs] = useState<Array<{ at: number; valve: number; liters?: number }>>([])
+  const [didFetch, setDidFetch] = useState(false)
+
+  // Always fetch jobs from API (device ack doesn't contain materialized jobs, only schedule metadata)
+  useEffect(() => {
+    if (didFetch) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        console.log('[NextRuns] fetching jobs from API...')
+        const json = await fetchConfigDedupe().catch(() => null as any)
+        const arr: Array<any> = Array.isArray(json?.config?.jobs) ? json.config.jobs : []
+        console.log('[NextRuns] received', arr.length, 'jobs from API')
+        if (!cancelled) {
+          setJobs(arr.map((j: any) => ({ at: Number(j?.at), valve: Number(j?.valve), liters: Number(j?.liters) })))
+          setDidFetch(true)
+        }
+      } catch (err) {
+        console.error('[NextRuns] fetch failed:', err)
+        if (!cancelled) { setJobs([]); setDidFetch(true) }
+      }
+    })()
+    return () => { cancelled = true }
+  }, [didFetch])
 
   const items = (() => {
-    const arr: Array<{ at: number; valve: number; liters?: number }> = Array.isArray(lastConfigAck?.jobs)
-      ? lastConfigAck.jobs
-      : []
-    const future = arr
-      .map((j) => ({ at: Number(j?.at), valve: Number(j?.valve), liters: Number(j?.liters) }))
+    const future = jobs
       .filter((j) => Number.isFinite(j.at) && j.at * 1000 > Date.now())
       .sort((a, b) => a.at - b.at)
       .slice(0, 10)
+    console.log('[NextRuns] displaying', future.length, 'upcoming jobs')
     return future
   })()
 

@@ -5,6 +5,7 @@ import { Activity, Database, Droplets, Power, SignalHigh, Thermometer } from "lu
 import { Badge } from "@/components/ui/badge"
 import { useIrrigationEvents } from "@/lib/useEvents"
 import { useEffect, useMemo, useState } from "react"
+import { fetchConfigDedupe } from "@/lib/config-client"
 
 export function SystemStatus() {
   const { online, lastStatus, lastStatusTs, activeValvesCount, lastConfigAck } = useIrrigationEvents()
@@ -47,8 +48,7 @@ export function SystemStatus() {
     let cancelled = false
     ;(async () => {
       try {
-        const res = await fetch('/api/config', { cache: 'no-store' })
-        const json = await res.json()
+        const json = await fetchConfigDedupe()
         const arr: Array<{ id: number; enabled?: boolean }> = Array.isArray(json?.config?.valves)
           ? json.config.valves
           : []

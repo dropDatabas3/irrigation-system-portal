@@ -24,8 +24,20 @@ export async function getDb(): Promise<Db | null> {
   const uri = getMongoUri()
   if (!uri) return null
   if (!client) {
-    client = new MongoClient(uri, { maxPoolSize: 5 })
-    await client.connect()
+    try {
+      client = new MongoClient(uri, {
+        maxPoolSize: 5,
+        // Fail fast when server is unreachable to avoid hanging API requests
+        serverSelectionTimeoutMS: 2500,
+        socketTimeoutMS: 4000,
+      })
+      await client.connect()
+    } catch (err) {
+      // If connection fails, reset client and operate in no-DB mode
+      try { await client?.close() } catch {}
+      client = null
+      return null
+    }
   }
   db = client.db(getDbName())
   try {
