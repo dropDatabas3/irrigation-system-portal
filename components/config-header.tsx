@@ -23,20 +23,20 @@ export function ConfigHeader() {
 
   return (
     <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-      <div className="container mx-auto px-4 md:px-6 lg:px-8 h-20 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard")} className="rounded-full">
+      <div className="container mx-auto px-4 md:px-6 lg:px-8 py-3 md:h-20 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+          <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard")} className="rounded-full shrink-0">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div>
-            <h1 className="text-lg font-bold text-foreground">Configuración de Válvulas</h1>
-            <p className="text-xs text-muted-foreground">Configura horarios, caudales y sensores para cada zona.</p>
+          <div className="min-w-0">
+            <h1 className="text-base md:text-lg font-bold text-foreground truncate">Configuración</h1>
+            <p className="text-xs text-muted-foreground hidden md:block">Configura horarios, caudales y sensores para cada zona.</p>
           </div>
         </div>
 
-        <Button className="gradient-primary" onClick={handleSave} disabled={saving} title="Guardar configuración">
-          <Save className="w-4 h-4 mr-2" />
-          {saving ? 'Guardando…' : 'Guardar Cambios'}
+        <Button className="gradient-primary shrink-0" onClick={handleSave} disabled={saving} title="Guardar configuración">
+          <Save className="w-4 h-4 md:mr-2" />
+          <span className="hidden md:inline">{saving ? 'Guardando…' : 'Guardar Cambios'}</span>
         </Button>
       </div>
     </header>

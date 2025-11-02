@@ -36,7 +36,7 @@ El archivo `vercel.json` ya está configurado:
   "crons": [
     {
       "path": "/api/cron/refresh-jobs",
-      "schedule": "0 */24 * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }
