@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
-import { publishConfig, getDeviceId, ensureConnected } from '@/lib/mqttServer'
+import { publishConfig, publishCmd, getDeviceId, ensureConnected } from '@/lib/mqttServer'
 import { buildJobs } from '@/lib/schedule'
 import { saveConfigCreatedEvent } from '@/lib/persist'
 import { withDb } from '@/lib/db'
+import { eventBus } from '@/lib/eventBus'
 
 export const runtime = 'nodejs'
 
@@ -135,21 +136,80 @@ export async function POST(req: Request) {
       serverTimeSec: now,
     }
 
-    // Fire-and-forget publish to avoid blocking the HTTP request if MQTT is lento o inaccesible
-    ;(async () => {
-      try {
-        // Esperar como máximo ~2s al broker, luego abandonar para no colgar el request
-        await Promise.race([
-          publishConfig(mqttPayload, deviceId),
-          new Promise((resolve) => setTimeout(resolve, 2000)),
-        ])
-        console.log(`[CONFIG POST] ${futureJobs.length} jobs publicados a MQTT exitosamente`)
-      } catch (err) {
-        console.error('[CONFIG POST] Error publicando jobs a MQTT:', err)
-      }
-    })()
+    // Seguridad: handshake con ACK de la placa y reintentos
+    ensureConnected()
 
-    return NextResponse.json({ ok: true })
+    function waitForAck(expectedCount: number, timeoutMs = 5000): Promise<any | null> {
+      return new Promise((resolve) => {
+        let done = false
+        const off = eventBus.onEvent((evt) => {
+          if (evt.type === 'config-ack' && evt?.payload && typeof evt.payload === 'object') {
+            // payload esperado: { ok: true, jobs:[{at,valve,liters}...] }
+            const jobs = Array.isArray((evt.payload as any).jobs) ? (evt.payload as any).jobs : []
+            if (jobs.length === expectedCount) {
+              if (!done) { done = true; off(); resolve(evt.payload) }
+            }
+          }
+        })
+        setTimeout(() => { if (!done) { done = true; off(); resolve(null) } }, timeoutMs)
+      })
+    }
+
+    function sameJobs(a: Array<any>, b: Array<any>) {
+      if (a.length !== b.length) return false
+      const key = (j: any) => `${j.at}|${j.valve}|${Number(j.liters).toFixed(3)}`
+      const sa = a.map(key).sort()
+      const sb = b.map(key).sort()
+      for (let i = 0; i < sa.length; i++) if (sa[i] !== sb[i]) return false
+      return true
+    }
+
+    let ack: any | null = null
+    let attempt = 0
+    const maxAttempts = 3
+
+    while (attempt < maxAttempts) {
+      attempt++
+      try {
+        await publishConfig(mqttPayload, deviceId)
+      } catch (e) {
+        if (attempt >= maxAttempts) {
+          return NextResponse.json({ ok: false, error: 'MQTT no conectado o publicación fallida' }, { status: 503 })
+        }
+      }
+
+      ack = await waitForAck(futureJobs.length, 5000)
+      if (ack && Array.isArray(ack.jobs)) {
+        // Validación de contenido
+        if (sameJobs(ack.jobs, futureJobs)) {
+          break
+        }
+      }
+      // backoff simple
+      await new Promise((r) => setTimeout(r, 500 * attempt))
+    }
+
+    const ok = !!(ack && Array.isArray(ack.jobs) && sameJobs(ack.jobs, futureJobs))
+
+    // Opcional: verificación adicional get-jobs (rápida, 3s)
+    let verify: any | null = null
+    try {
+      const verifyResp = await new Promise<any>((resolve, reject) => {
+        let finished = false
+        const off = eventBus.onEvent((evt) => {
+          if (evt.type === 'status' && (evt as any)?.payload?.action === 'get-jobs') {
+            if (!finished) { finished = true; off(); resolve((evt as any).payload) }
+          }
+        })
+        publishCmd({ action: 'get-jobs' } as any, deviceId).catch((err) => {
+          if (!finished) { finished = true; off(); reject(err) }
+        })
+        setTimeout(() => { if (!finished) { finished = true; off(); resolve(null) } }, 3000)
+      })
+      verify = verifyResp
+    } catch {}
+
+    return NextResponse.json({ ok, ackJobs: ack?.jobs?.length ?? 0, verified: !!verify, verifySample: Array.isArray(verify?.jobs) ? verify.jobs.slice(0, 3) : null })
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || 'Server error' }, { status: 500 })
   }

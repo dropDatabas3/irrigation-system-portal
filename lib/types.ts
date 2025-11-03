@@ -13,4 +13,5 @@ export type CmdPayload =
   | { action: 'startAp' }
   | { action: 'restart' }
   | { action: 'syncTime' }
+  | { action: 'get-jobs' }
   | { action: 'wifiSet'; ssid: string; pass: string };

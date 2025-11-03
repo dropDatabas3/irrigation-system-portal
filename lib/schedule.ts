@@ -17,11 +17,39 @@ type BuildJobsOpts = {
   horizonDays?: number // how many days ahead to materialize
 }
 
+// Get timezone offset in minutes (e.g., UTC-3 = 180)
+// Use environment variable or default to UTC
+function getTimezoneOffsetMinutes(): number {
+  const tz = process?.env?.TZ_OFFSET_MINUTES
+  if (tz && !isNaN(Number(tz))) {
+    return Number(tz)
+  }
+  // Default: try to detect from server, or use 0 (UTC)
+  return 0
+}
+
 function hhmmToTodayMs(hhmm: string, base: Date) {
   const [hStr, mStr] = hhmm.split(':')
   const h = Number(hStr), m = Number(mStr)
-  const dt = new Date(base.getFullYear(), base.getMonth(), base.getDate(), h, m, 0, 0)
-  return dt.getTime()
+  const offsetMinutes = getTimezoneOffsetMinutes()
+  
+  // CORRECCIÓN: Crear fecha en la zona horaria del usuario
+  // base ya tiene el día correcto en UTC, pero necesitamos interpretar la hora en timezone local
+  const utcDate = new Date(Date.UTC(base.getFullYear(), base.getMonth(), base.getDate(), h, m, 0, 0))
+  
+  // Convertir de hora local a UTC sumando el offset
+  // Si offset=-180 (UTC-3), y usuario dice "20:00", queremos "23:00 UTC"
+  // Entonces: 20:00 UTC + 3h = 23:00 UTC
+  const result = utcDate.getTime() + (Math.abs(offsetMinutes) * 60 * 1000)
+  
+  // Debug logging
+  if (process.env.NODE_ENV !== 'production') {
+    const localTime = `${hStr.padStart(2, '0')}:${mStr.padStart(2, '0')}`
+    const utcTime = new Date(result).toISOString()
+    console.log(`[SCHEDULE] ${localTime} local (offset=${offsetMinutes}) → ${utcTime} (epoch=${Math.floor(result/1000)})`)
+  }
+  
+  return result
 }
 
 function pushJob(arr: any[], atMs: number, valveId: 'v1'|'v2'|'v3', liters: number) {
@@ -36,11 +64,18 @@ export function buildJobs(opts: BuildJobsOpts) {
 
   if (opts.mode === 'daily') {
     const times = opts.scheduleTimes?.length ? opts.scheduleTimes : ['08:00']
+    console.log(`[SCHEDULE] Daily mode: times=${JSON.stringify(times)}, horizonDays=${horizonDays}`)
     for (let d = 0; d < horizonDays; d++) {
       const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + d)
+      console.log(`[SCHEDULE] Day ${d}: ${day.toISOString()}`)
       for (const t of times) {
         let at = hhmmToTodayMs(t, day)
-        if (at <= Date.now()) at += 24 * 60 * 60 * 1000
+        console.log(`[SCHEDULE]   Time ${t}: at=${at} (${new Date(at).toISOString()}), now=${Date.now()} (${new Date().toISOString()})`)
+        if (at <= Date.now()) {
+          console.log(`[SCHEDULE]   ⚠️ In the past, adding 24h`)
+          at += 24 * 60 * 60 * 1000
+        }
+        console.log(`[SCHEDULE]   ✅ Final: ${new Date(at).toISOString()} (epoch=${Math.floor(at/1000)})`)
         pushJob(jobs, at, opts.valveId, liters)
       }
     }
