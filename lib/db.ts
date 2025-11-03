@@ -52,6 +52,10 @@ export async function getDb(): Promise<Db | null> {
     // Keep only latest ack per device
     try { await db.collection('configAcks').dropIndex('byDeviceTs') } catch {}
     await db.collection('configAcks').createIndex({ deviceId: 1 }, { name: 'byDeviceUnique', unique: true })
+    // Profiles: unique name per device
+    try { await db.collection('profiles').createIndex({ deviceId: 1, name: 1 }, { name: 'byDeviceName', unique: true }) } catch {}
+    // Tank: single doc per device
+    try { await db.collection('tank').createIndex({ deviceId: 1 }, { name: 'byDeviceUnique', unique: true }) } catch {}
   } catch {
     // ignore index errors in dev or when no permissions
   }

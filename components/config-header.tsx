@@ -3,11 +3,23 @@
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Save } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 export function ConfigHeader() {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
+  const [dirty, setDirty] = useState(false)
+
+  // Listen for dirty state from the list
+  useEffect(() => {
+    const onDirty = (e: Event) => {
+      const ce = e as CustomEvent
+      const val = !!(ce?.detail as any)
+      setDirty(val)
+    }
+    window.addEventListener('config:dirty', onDirty as EventListener)
+    return () => window.removeEventListener('config:dirty', onDirty as EventListener)
+  }, [])
 
   const handleSave = () => {
     if (saving) return
@@ -34,9 +46,9 @@ export function ConfigHeader() {
           </div>
         </div>
 
-        <Button className="gradient-primary shrink-0" onClick={handleSave} disabled={saving} title="Guardar configuración">
+        <Button className="gradient-primary shrink-0" onClick={handleSave} disabled={saving || !dirty} title="Guardar configuración">
           <Save className="w-4 h-4 md:mr-2" />
-          <span className="hidden md:inline">{saving ? 'Guardando…' : 'Guardar Cambios'}</span>
+          <span className="hidden md:inline">{saving ? 'Guardando…' : (dirty ? 'Guardar Cambios' : 'Sin cambios')}</span>
         </Button>
       </div>
     </header>

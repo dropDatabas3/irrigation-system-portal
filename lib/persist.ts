@@ -38,6 +38,26 @@ export async function saveEvent(evt: PersistEvent) {
       }
       
       await col.insertOne({ ...evt })
+
+      // Update tank after successful irrigation result
+      if (t === 'result' && evt.payload) {
+        const used = Number(evt.payload?.liters ?? evt.payload?.deliveredLiters)
+        if (Number.isFinite(used) && used > 0) {
+          const tankCol = db.collection('tank')
+          const deviceId = evt.deviceId
+          const now = Date.now()
+          // Decrement current volume but not below 0
+          const doc = await tankCol.findOne({ deviceId })
+          const current = Number(doc?.currentVolumeLiters) || 0
+          const capacity = Number(doc?.capacityLiters) || current || 0
+          const nextCurrent = Math.max(0, current - used)
+          await tankCol.updateOne(
+            { deviceId },
+            { $set: { currentVolumeLiters: nextCurrent, capacityLiters: capacity || nextCurrent, updatedAt: now }, $setOnInsert: { createdAt: now, deviceId } },
+            { upsert: true }
+          )
+        }
+      }
     })
   } catch {
     // no-op when DB not configured

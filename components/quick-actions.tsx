@@ -2,13 +2,16 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Power, PowerOff, RefreshCw, Settings, Cpu } from "lucide-react"
+import { Power, PowerOff, RefreshCw, Settings, Cpu, BookMarked } from "lucide-react"
 import { sendCmd } from "@/lib/api"
 import { SUPPORTED_VALVES, toDeviceValve } from "@/lib/valves"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
+import { useEffect, useState } from "react"
 
 export function QuickActions() {
   const router = useRouter()
+  const [tankInfo, setTankInfo] = useState<{ currentLiters: number; capacityLiters: number; percent: number } | null>(null)
 
   const handleActivateAll = async () => {
     // Open each supported valve for 3 seconds as a quick test
@@ -40,6 +43,26 @@ export function QuickActions() {
   const handleChipInfo = () => {
     router.push("/chip-info")
   }
+
+  const handleOpenTank = () => {
+    window.dispatchEvent(new CustomEvent('tank:open'))
+  }
+
+  const handleOpenProfiles = () => {
+    window.dispatchEvent(new CustomEvent('profiles:open'))
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/tank', { cache: 'no-store' })
+        const j = await res.json()
+        if (!cancelled && j?.ok) setTankInfo({ currentLiters: j.currentLiters, capacityLiters: j.capacityLiters, percent: j.percent })
+      } catch {}
+    })()
+    return () => { cancelled = true }
+  }, [])
 
   return (
     <Card className="gradient-border">
@@ -95,10 +118,31 @@ export function QuickActions() {
             <span className="text-sm font-medium">Configuración</span>
             <span className="text-[10px] opacity-90">Opciones del sistema</span>
           </Button>
-        </div>
-      </CardContent>
-      <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-auto py-4 flex-col gap-1 bg-transparent"
+            onClick={handleOpenTank}
+            title="Estado del depósito"
+          >
+            <div className="w-5 h-5 relative">
+              <Image src="/water-tank-1.png" alt="Tanque" fill className="object-contain" sizes="20px" />
+            </div>
+            <span className="text-sm font-medium">Depósito</span>
+            <span className="text-[10px] opacity-90">{tankInfo ? `${Math.round(tankInfo.currentLiters)}/${Math.round(tankInfo.capacityLiters)} L` : '—'}</span>
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="h-auto py-4 flex-col gap-1 bg-transparent"
+            onClick={handleOpenProfiles}
+            title="Perfiles de riego"
+          >
+            <BookMarked className="w-5 h-5" />
+            <span className="text-sm font-medium">Perfiles</span>
+            <span className="text-[10px] opacity-90">Crear, editar, aplicar</span>
+          </Button>
           <Button
             type="button"
             variant="outline"

@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Clock, Droplets, MapPin, Thermometer, CloudRain, Droplet, Plus, X } from "lucide-react"
 import type { ValveConfig } from "@/components/valve-config-list"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface ValveConfigCardProps {
   config: ValveConfig
@@ -17,6 +18,11 @@ interface ValveConfigCardProps {
 
 export function ValveConfigCard({ config, onUpdate }: ValveConfigCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const [profiles, setProfiles] = useState<Array<{ name: string; schedule: any }>>([])
+  const [loadingProfiles, setLoadingProfiles] = useState(false)
+  const [profileName, setProfileName] = useState("")
+  const [appliedProfileName, setAppliedProfileName] = useState<string | null>(null)
+  const [originalScheduleJson, setOriginalScheduleJson] = useState<string | null>(null)
 
   const weekDays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 
@@ -43,6 +49,63 @@ export function ValveConfigCard({ config, onUpdate }: ValveConfigCardProps) {
     consecutiveWaterings: 1, // Default 1 watering
     wateringIntervalMinutes: 3, // Default 3 minutes between consecutive waterings
   })
+
+  // Load profiles when expanded
+  useEffect(() => {
+    if (!isExpanded) return
+    let cancelled = false
+    setLoadingProfiles(true)
+    ;(async () => {
+      try {
+        const res = await fetch('/api/profiles', { cache: 'no-store' })
+        const j = await res.json()
+        if (!cancelled && Array.isArray(j?.profiles)) setProfiles(j.profiles)
+      } catch {}
+      if (!cancelled) setLoadingProfiles(false)
+    })()
+    return () => { cancelled = true }
+  }, [isExpanded])
+
+  const scheduleJson = config.schedule ? JSON.stringify(config.schedule) : null
+  const scheduleModifiedFromProfile = appliedProfileName && originalScheduleJson && scheduleJson && originalScheduleJson !== scheduleJson
+
+  const handleApplyProfile = async (name: string) => {
+    try {
+      const idStr = config.id
+      const res = await fetch(`/api/valves/${idStr}/apply-profile`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
+      const j = await res.json()
+      if (!res.ok || !j?.ok) throw new Error(j?.error || 'No se pudo aplicar el perfil')
+      const p = profiles.find(p => p.name === name)
+      if (p?.schedule) {
+        onUpdate({ schedule: p.schedule as any })
+        setAppliedProfileName(name)
+        setOriginalScheduleJson(JSON.stringify(p.schedule))
+      }
+    } catch (e) {
+      // no-op minimal
+    }
+  }
+
+  const handleSaveProfile = async () => {
+    try {
+      if (!config.schedule) return
+      const name = profileName.trim()
+      if (!name) return
+      const res = await fetch('/api/profiles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, schedule: config.schedule }) })
+      const j = await res.json()
+      if (!res.ok || !j?.ok) return
+      setProfiles(prev => {
+        const idx = prev.findIndex(p => p.name === name)
+        const next = [...prev]
+        if (idx >= 0) next[idx] = { name, schedule: config.schedule }
+        else next.push({ name, schedule: config.schedule })
+        return next.sort((a, b) => a.name.localeCompare(b.name))
+      })
+      setProfileName("")
+      setAppliedProfileName(name)
+      setOriginalScheduleJson(JSON.stringify(config.schedule))
+    } catch {}
+  }
 
   return (
     <Card className={`gradient-border ${locked ? 'opacity-60' : ''}`} title={disabledTitle}>
@@ -97,6 +160,32 @@ export function ValveConfigCard({ config, onUpdate }: ValveConfigCardProps) {
               </div>
             ) : (
               <>
+                {/* Profiles row */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="space-y-2">
+                    <Label>Cargar perfil de riego</Label>
+                    <Select disabled={loadingProfiles || profiles.length === 0} onValueChange={(v: any) => v && handleApplyProfile(v)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={loadingProfiles ? 'Cargando…' : (profiles.length ? 'Elegir perfil' : 'Sin perfiles')} />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-64 overflow-auto">
+                        {profiles.map(p => (
+                          <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {(config.schedule && (!appliedProfileName || scheduleModifiedFromProfile)) && (
+                    <div className="space-y-2">
+                      <Label>Guardar perfil de riego</Label>
+                      <div className="flex gap-2">
+                        <Input placeholder="Nombre" value={profileName} onChange={(e) => setProfileName(e.target.value)} />
+                        <Button type="button" variant="outline" className="bg-transparent" onClick={handleSaveProfile}>Guardar</Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Mode selector */}
                 <div className="flex flex-wrap gap-2">
                   {([

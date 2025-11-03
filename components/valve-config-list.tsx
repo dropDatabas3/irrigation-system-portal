@@ -40,6 +40,7 @@ export interface ValveConfig {
 export function ValveConfigList() {
   const [configs, setConfigs] = useState<ValveConfig[]>([])
   const [loading, setLoading] = useState(true)
+  const [initialSnapshot, setInitialSnapshot] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/config')
@@ -58,6 +59,9 @@ export function ValveConfigList() {
             sensors: { moisture: true, temperature: false, rain: false },
           }))
           setConfigs(loadedConfigs)
+          const snap = JSON.stringify(loadedConfigs.map((c: ValveConfig) => ({ id: c.id, name: c.name, zone: c.zone, enabled: c.enabled, schedule: (c as any).schedule || null })))
+          setInitialSnapshot(snap)
+          window.dispatchEvent(new CustomEvent('config:dirty', { detail: false }))
         }
       })
       .catch(err => console.error('Failed to load configs:', err))
@@ -67,6 +71,14 @@ export function ValveConfigList() {
   const updateConfig = (id: string, updates: Partial<ValveConfig>) => {
     setConfigs(configs.map((config) => (config.id === id ? { ...config, ...updates } : config)))
   }
+
+  // Dirty tracking: compare minimal snapshot
+  useEffect(() => {
+    if (!initialSnapshot) return
+  const snap = JSON.stringify(configs.map((c: ValveConfig) => ({ id: c.id, name: c.name, zone: c.zone, enabled: c.enabled, schedule: (c as any).schedule || null })))
+    const dirty = snap !== initialSnapshot
+    window.dispatchEvent(new CustomEvent('config:dirty', { detail: dirty }))
+  }, [configs, initialSnapshot])
 
   // Handle save event from header; persist valves list to device and per-valve configs (with schedule) to DB via /api/config
   useEffect(() => {
@@ -87,7 +99,12 @@ export function ValveConfigList() {
         const payload = { valves, valveConfigs }
         const res = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
         const json = await res.json()
-        if (json?.ok) toast.success('Configuración guardada')
+        if (json?.ok) {
+          toast.success('Configuración guardada')
+          const snap = JSON.stringify(configs.map((c: ValveConfig) => ({ id: c.id, name: c.name, zone: c.zone, enabled: c.enabled, schedule: (c as any).schedule || null })))
+          setInitialSnapshot(snap)
+          window.dispatchEvent(new CustomEvent('config:dirty', { detail: false }))
+        }
         else toast.error('No se pudo guardar la configuración')
       } catch (e) {
         toast.error('Error al guardar la configuración')

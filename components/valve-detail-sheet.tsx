@@ -69,6 +69,13 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
   const [metricsDateRange, setMetricsDateRange] = useState<"week" | "month" | "year" | "custom">("week")
   const [customStartDate, setCustomStartDate] = useState("")
   const [customEndDate, setCustomEndDate] = useState("")
+  // Profiles & schedule tools
+  const [profiles, setProfiles] = useState<Array<{ name: string; schedule: any }>>([])
+  const [profileName, setProfileName] = useState("")
+  const [loadingProfiles, setLoadingProfiles] = useState(false)
+  const [appliedProfileName, setAppliedProfileName] = useState<string | null>(null)
+  const [originalScheduleJson, setOriginalScheduleJson] = useState<string | null>(null)
+  const [initialSnapshot, setInitialSnapshot] = useState<string | null>(null)
 
   // Load per-valve metrics
   const deviceValve = toDeviceValve(valve.id as any)
@@ -158,6 +165,17 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
           } else {
             console.log('[sheet detection] no schedule found for valve', deviceValve)
           }
+          // Build initial snapshot for dirty tracking
+          const initSched = (hasJobsForValve && entry?.schedule) ? entry.schedule : undefined
+          const snap = JSON.stringify({
+            enabled: valve.enabled !== false,
+            name: valve.name ?? '',
+            zone: valve.zone ?? '',
+            schedule: initSched || null,
+          })
+          setInitialSnapshot(snap)
+          setAppliedProfileName(null)
+          setOriginalScheduleJson(initSched ? JSON.stringify(initSched) : null)
         }
       } catch (err) {
         console.error('[sheet detection] failed:', err)
@@ -166,6 +184,22 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
     })()
     return () => { cancelled = true }
   }, [deviceValve, open]) // ❌ REMOVED configFetched from deps to avoid infinite loop
+
+  // Load profiles when opening config tab for this valve
+  useEffect(() => {
+    let cancelled = false
+    if (!open) return
+    setLoadingProfiles(true)
+    ;(async () => {
+      try {
+        const res = await fetch('/api/profiles', { cache: 'no-store' })
+        const j = await res.json()
+        if (!cancelled && Array.isArray(j?.profiles)) setProfiles(j.profiles)
+      } catch {}
+      if (!cancelled) setLoadingProfiles(false)
+    })()
+    return () => { cancelled = true }
+  }, [open])
 
   const buildSchedulePayload = () => {
     // Construir un objeto "schedule" compatible con el API (normalizeSchedule)
@@ -212,8 +246,8 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
       // 1) Update UI state immediately
       onUpdate(editedValve)
 
-      // 2) Construir schedule para esta válvula (persistencia en DB)
-      const schedule = hasValveJobs ? buildSchedulePayload() : undefined
+  // 2) Construir schedule para esta válvula (persistencia en DB)
+  const schedule = hasValveJobs ? buildSchedulePayload() : undefined
       console.log('[handleSave] schedule to save:', JSON.stringify(schedule))
 
       // 3) Merge with existing config so we don't wipe other valves' schedules/metadata
@@ -258,6 +292,10 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
         if (ok) {
           setSaveOk(hasValveJobs ? 'Rutina creada correctamente' : 'Cambios guardados')
           console.log('[handleSave] success')
+          // Reset dirty baseline
+          const snap = JSON.stringify({ enabled, name: editedValve.name ?? '', zone: editedValve.zone ?? '', schedule: schedule || null })
+          setInitialSnapshot(snap)
+          if (appliedProfileName) setOriginalScheduleJson(schedule ? JSON.stringify(schedule) : null)
           // Opción: cerrar automáticamente después de una breve confirmación
           // setTimeout(() => onOpenChange(false), 800)
         } else {
@@ -287,6 +325,87 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
       setTimeout(() => setIsTesting(false), 3000)
     }
   }
+
+  const handleClearSchedule = async () => {
+    try {
+      const idStr = String(valve.id)
+      const res = await fetch(`/api/valves/${idStr}/clear-schedule`, { method: 'POST' })
+      const j = await res.json()
+      if (!res.ok || !j?.ok) throw new Error(j?.error || 'No se pudo borrar la rutina')
+      setHasValveJobs(false)
+      setSaveOk('Rutina borrada')
+    } catch (e) {
+      setSaveErr((e as any)?.message || 'Error al borrar la rutina')
+    }
+  }
+
+  const handleSaveProfile = async () => {
+    try {
+      const schedule = buildSchedulePayload()
+      if (!schedule) throw new Error('No hay una programación para guardar')
+      const name = profileName.trim()
+      if (!name) throw new Error('Ingrese un nombre para el perfil')
+      const res = await fetch('/api/profiles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, schedule }) })
+      const j = await res.json()
+      if (!res.ok || !j?.ok) throw new Error(j?.error || 'No se pudo guardar el perfil')
+      setProfiles((prev) => {
+        const idx = prev.findIndex((p) => p.name === name)
+        const next = [...prev]
+        if (idx >= 0) next[idx] = { name, schedule }
+        else next.push({ name, schedule })
+        return next.sort((a, b) => a.name.localeCompare(b.name))
+      })
+      setProfileName('')
+      setSaveOk('Perfil guardado')
+    } catch (e) {
+      setSaveErr((e as any)?.message || 'Error al guardar perfil')
+    }
+  }
+
+  const handleApplyProfile = async (name: string) => {
+    try {
+      const idStr = String(valve.id)
+      const res = await fetch(`/api/valves/${idStr}/apply-profile`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
+      const j = await res.json()
+      if (!res.ok || !j?.ok) throw new Error(j?.error || 'No se pudo aplicar el perfil')
+      // Also load profile to UI form so user sees it
+      const p = profiles.find((p) => p.name === name)
+      if (p?.schedule) {
+        const sch = p.schedule
+        setHasValveJobs(true)
+        setScheduleMode(sch.mode || 'daily')
+        if (sch.days && Array.isArray(sch.days)) setSelectedDays(sch.days)
+        if (sch.times && Array.isArray(sch.times)) setScheduleTimes(sch.times)
+        if (sch.startTime) setScheduleTime(sch.startTime)
+        if (Number.isFinite(sch.intervalDays)) setIntervalDays(Number(sch.intervalDays))
+        if (Number.isFinite(sch.intervalHours)) setIntervalHours(Number(sch.intervalHours))
+        if (Number.isFinite(sch.consecutiveWaterings)) setConsecutiveWaterings(Number(sch.consecutiveWaterings))
+        if (Number.isFinite(sch.wateringIntervalMinutes)) setWateringIntervalMinutes(Number(sch.wateringIntervalMinutes))
+        if (Number.isFinite(sch.liters)) {
+          const liters = Number(sch.liters)
+          if (liters < 1) setEditedValve((prev) => ({ ...prev, waterAmount: Math.round(liters * 1000), waterUnit: 'ml' }))
+          else setEditedValve((prev) => ({ ...prev, waterAmount: liters, waterUnit: 'L' }))
+        }
+      }
+      setAppliedProfileName(name)
+      setOriginalScheduleJson(p?.schedule ? JSON.stringify(p.schedule) : null)
+      setSaveOk('Perfil aplicado')
+    } catch (e) {
+      setSaveErr((e as any)?.message || 'Error al aplicar perfil')
+    }
+  }
+
+  // Dirty tracking
+  const currentSchedule = hasValveJobs ? buildSchedulePayload() : undefined
+  const currentSnapshot = JSON.stringify({
+    enabled,
+    name: editedValve.name ?? '',
+    zone: editedValve.zone ?? '',
+    schedule: currentSchedule || null,
+  })
+  const isDirty = initialSnapshot ? initialSnapshot !== currentSnapshot : false
+  const scheduleJson = currentSchedule ? JSON.stringify(currentSchedule) : null
+  const scheduleModifiedFromProfile = appliedProfileName && originalScheduleJson && scheduleJson && originalScheduleJson !== scheduleJson
 
   const getStatusColor = (status: Valve["status"]) => {
     switch (status) {
@@ -602,6 +721,37 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6 relative z-10">
+                <div className="flex flex-col md:flex-row md:items-end gap-3">
+                  <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="space-y-2">
+                      <Label>Cargar perfil de riego</Label>
+                      <Select disabled={loadingProfiles || profiles.length === 0} onValueChange={(v: any) => v && handleApplyProfile(v)}>
+                        <SelectTrigger className="relative z-10">
+                          <SelectValue placeholder={loadingProfiles ? 'Cargando…' : (profiles.length ? 'Elegir perfil' : 'Sin perfiles')} />
+                        </SelectTrigger>
+                        <SelectContent className="z-100 max-h-64 overflow-auto">
+                          {profiles.map((p) => (
+                            <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {(hasValveJobs && (!appliedProfileName || scheduleModifiedFromProfile)) && (
+                      <div className="space-y-2">
+                        <Label>Guardar perfil de riego</Label>
+                        <div className="flex gap-2">
+                          <Input placeholder="Nombre" value={profileName} onChange={(e) => setProfileName(e.target.value)} />
+                          <Button type="button" variant="outline" onClick={handleSaveProfile} className="bg-transparent">Guardar</Button>
+                        </div>
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      <Label>Borrar rutina</Label>
+                      <Button type="button" variant="destructive" onClick={handleClearSchedule}>Borrar</Button>
+                    </div>
+                  </div>
+                </div>
+
                 {!hasValveJobs && (
                   <div className="p-4 rounded-lg bg-secondary/30 border border-border text-sm text-muted-foreground flex items-center justify-between">
                     <span>No hay una programación guardada para esta válvula.</span>
@@ -943,9 +1093,9 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
             )}
 
             {/* Save Button */}
-            <Button type="button" onClick={handleSave} className="w-full gradient-primary relative z-10" size="lg" disabled={saving}>
+            <Button type="button" onClick={handleSave} className="w-full gradient-primary relative z-10" size="lg" disabled={saving || !isDirty}>
               <Save className="w-4 h-4 mr-2" />
-              {saving ? 'Guardando…' : 'Guardar Cambios'}
+              {saving ? 'Guardando…' : (isDirty ? 'Guardar Cambios' : 'Sin cambios')}
             </Button>
           </TabsContent>
         </Tabs>

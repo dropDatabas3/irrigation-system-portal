@@ -20,6 +20,8 @@ export default function DashboardPage() {
   {/* Config summary */}
   <DashboardConfigSummary />
 
+  {/* Tank status moved into Quick Actions panel */}
+
         {/* Upcoming runs */}
         <NextRuns />
 
