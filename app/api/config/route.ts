@@ -61,6 +61,9 @@ export async function POST(req: Request) {
     } catch {}
 
     // Materializar jobs para los próximos 7 días y enviar al ESP8266
+    // Preferir TZ enviada por el navegador si está disponible
+    const tzOffsetRaw = (payload && typeof payload === 'object') ? (payload as any).tzOffsetMinutes : undefined
+    const tzOffsetMinutes = (Number.isFinite(tzOffsetRaw) && Math.abs(Number(tzOffsetRaw)) <= 14 * 60) ? Number(tzOffsetRaw) : undefined
     const valveConfigs: Array<any> = Array.isArray((payload as any)?.valves)
       ? (payload as any).valves
       : []
@@ -87,14 +90,16 @@ export async function POST(req: Request) {
           result = buildJobs({ 
             ...common, 
             mode: 'daily', 
-            scheduleTimes: Array.isArray(sch.times) ? sch.times : undefined 
+            scheduleTimes: Array.isArray(sch.times) ? sch.times : undefined,
+            tzOffsetMinutes,
           } as any)
         } else if (mode === 'weekly') {
           result = buildJobs({ 
             ...common, 
             mode: 'weekly', 
             selectedDays: Array.isArray(sch.days) ? sch.days : undefined, 
-            weeklyTime: sch.startTime 
+            weeklyTime: sch.startTime,
+            tzOffsetMinutes,
           } as any)
         } else if (mode === 'interval') {
           result = buildJobs({ 
@@ -106,13 +111,15 @@ export async function POST(req: Request) {
             scheduleTimes: Array.isArray(sch.times) ? sch.times : undefined,
             consecutiveWaterings: sch.consecutiveWaterings,
             wateringIntervalMinutes: sch.wateringIntervalMinutes,
+            tzOffsetMinutes,
           } as any)
         } else if (mode === 'custom') {
           result = buildJobs({ 
             ...common, 
             mode: 'custom', 
             selectedDays: Array.isArray(sch.days) ? sch.days : undefined, 
-            scheduleTimes: Array.isArray(sch.times) ? sch.times : undefined 
+            scheduleTimes: Array.isArray(sch.times) ? sch.times : undefined,
+            tzOffsetMinutes,
           } as any)
         }
         
@@ -144,9 +151,11 @@ export async function POST(req: Request) {
         let done = false
         const off = eventBus.onEvent((evt) => {
           if (evt.type === 'config-ack' && evt?.payload && typeof evt.payload === 'object') {
-            // payload esperado: { ok: true, jobs:[{at,valve,liters}...] }
-            const jobs = Array.isArray((evt.payload as any).jobs) ? (evt.payload as any).jobs : []
-            if (jobs.length === expectedCount) {
+            // payload puede ser completo { ok:true, jobs:[...] } o compacto { ok:true, jobsCount:n, next?, note }
+            const p = (evt.payload as any)
+            const jobs = Array.isArray(p.jobs) ? p.jobs : []
+            const count = Number.isFinite(p.jobsCount) ? Number(p.jobsCount) : jobs.length
+            if (count === expectedCount) {
               if (!done) { done = true; off(); resolve(evt.payload) }
             }
           }
@@ -179,17 +188,30 @@ export async function POST(req: Request) {
       }
 
       ack = await waitForAck(futureJobs.length, 5000)
-      if (ack && Array.isArray(ack.jobs)) {
-        // Validación de contenido
-        if (sameJobs(ack.jobs, futureJobs)) {
-          break
+      if (ack) {
+        const p: any = ack
+        const jobs = Array.isArray(p.jobs) ? p.jobs : []
+        const count = Number.isFinite(p.jobsCount) ? Number(p.jobsCount) : jobs.length
+        // Validación: aceptar si coincide la cantidad; cuando haya lista completa, además validar contenido
+        if (count === futureJobs.length) {
+          if (jobs.length > 0) {
+            if (sameJobs(jobs, futureJobs)) {
+              break
+            }
+          } else {
+            // ACK compacto sin jobs, aceptamos
+            break
+          }
         }
       }
       // backoff simple
       await new Promise((r) => setTimeout(r, 500 * attempt))
     }
 
-    const ok = !!(ack && Array.isArray(ack.jobs) && sameJobs(ack.jobs, futureJobs))
+    const ok = !!(ack && (
+      (Array.isArray((ack as any).jobs) && sameJobs((ack as any).jobs, futureJobs)) ||
+      (Number.isFinite((ack as any).jobsCount) && (ack as any).jobsCount === futureJobs.length)
+    ))
 
     // Opcional: verificación adicional get-jobs (rápida, 3s)
     let verify: any | null = null
@@ -215,9 +237,18 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const deviceId = getDeviceId()
+    // Intentar usar timezone del cliente desde cabecera opcional
+    let tzOffsetMinutes: number | undefined = undefined
+    try {
+      const hdr = req.headers.get('x-tz-offset-minutes')
+      if (hdr !== null) {
+        const n = Number(hdr)
+        if (!Number.isNaN(n) && Math.abs(n) <= 14 * 60) tzOffsetMinutes = n
+      }
+    } catch {}
     // Fast-fail DB read to avoid pending requests
     const valvesFromDb = await Promise.race([
       withDb(async (db) => {
@@ -258,9 +289,9 @@ export async function GET() {
         const common = { valveId: valveKey, liters, horizonDays: 7 }
         let result: any = { jobs: [] as any[] }
         if (mode === 'daily') {
-          result = buildJobs({ ...common, mode: 'daily', scheduleTimes: Array.isArray(sch.times) ? sch.times : undefined } as any)
+          result = buildJobs({ ...common, mode: 'daily', scheduleTimes: Array.isArray(sch.times) ? sch.times : undefined, tzOffsetMinutes } as any)
         } else if (mode === 'weekly') {
-          result = buildJobs({ ...common, mode: 'weekly', selectedDays: Array.isArray(sch.days) ? sch.days : undefined, weeklyTime: sch.startTime } as any)
+          result = buildJobs({ ...common, mode: 'weekly', selectedDays: Array.isArray(sch.days) ? sch.days : undefined, weeklyTime: sch.startTime, tzOffsetMinutes } as any)
         } else if (mode === 'interval') {
           result = buildJobs({ 
             ...common, 
@@ -271,9 +302,10 @@ export async function GET() {
             scheduleTimes: Array.isArray(sch.times) ? sch.times : undefined,
             consecutiveWaterings: sch.consecutiveWaterings,
             wateringIntervalMinutes: sch.wateringIntervalMinutes,
+            tzOffsetMinutes,
           } as any)
         } else if (mode === 'custom') {
-          result = buildJobs({ ...common, mode: 'custom', selectedDays: Array.isArray(sch.days) ? sch.days : undefined, scheduleTimes: Array.isArray(sch.times) ? sch.times : undefined } as any)
+          result = buildJobs({ ...common, mode: 'custom', selectedDays: Array.isArray(sch.days) ? sch.days : undefined, scheduleTimes: Array.isArray(sch.times) ? sch.times : undefined, tzOffsetMinutes } as any)
         }
         if (Array.isArray(result?.jobs)) {
           console.log('[GET /api/config] valve', valveKey, 'materialized', result.jobs.length, 'jobs with liters:', liters)

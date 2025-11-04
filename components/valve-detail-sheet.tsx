@@ -284,7 +284,7 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
         const postRes = await fetch('/api/config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ jobs: merged, valves: updatedValves }),
+          body: JSON.stringify({ jobs: merged, valves: updatedValves, tzOffsetMinutes: -new Date().getTimezoneOffset() }),
           signal: controller.signal,
         })
         clearTimeout(timeoutId)
