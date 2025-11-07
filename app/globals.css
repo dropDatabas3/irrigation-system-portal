@@ -278,17 +278,17 @@
     position: relative;
     box-shadow: 0 0 0 1px rgba(0,0,0,0.25) inset;
   }
-  .run-radio-design::before {
+  .run-radio-design::after {
     content: '';
     position: absolute;
-    inset: 0;
+    inset: 4px;
     border-radius: 9999px;
-    background: oklch(0.85 0 240);
-    transform: scale(1.1);
-    transition: transform 0.2s ease;
-  }
-  .run-radio-input:checked + .run-radio-design::before {
+    background: oklch(0.85 0 240 / 0.9);
     transform: scale(0);
+    transition: transform 0.18s ease;
+  }
+  .run-radio-design.is-checked::after {
+    transform: scale(1);
   }
   /* Tank modal animations - from origin to center using CSS var offsets */
   @keyframes modalFromOrigin {

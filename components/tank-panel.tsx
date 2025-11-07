@@ -104,9 +104,15 @@ function TankModal({ originRect, tankInfo, onRequestClose, closing }: { originRe
 
   return (
     <div className="fixed inset-0 z-50" aria-modal="true" role="dialog">
-      {/* Backdrop fullscreen con blur más intenso */}
+      {/* Backdrop fullscreen con blur real y z-index explícitos para garantizar contraste */}
       <div
-        className={`fixed inset-0 bg-background/40 dark:bg-black/50 backdrop-blur-md ${closing ? 'animate-fadeOut' : 'animate-fadeIn'}`}
+        className={`fixed inset-0 ${closing ? 'animate-fadeOut' : 'animate-fadeIn'}`}
+        style={{
+          zIndex: 59,
+          background: 'rgba(0,0,0,0.45)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)'
+        }}
         aria-hidden
       />
       <div

@@ -153,9 +153,11 @@ export function NextRuns() {
     } catch (e) { console.error('suppress failed', e) } finally { setConfirmBusy(false); setConfirmSingleOpen(null) }
   }
 
-  // Simple click/tap toggles selection; clicking again deselects.
+  // Simple click behavior: if nothing selected -> select this one (single select).
+  // If there is an active selection -> toggle this one to allow multi-select via single clicks.
   function handleItemClick(j: { at: number; valve: number }) {
-    toggleOne(j)
+    if (selectedCount === 0) selectOne(j)
+    else toggleOne(j)
   }
 
   // Clear selection when clicking outside the card. Use capture to run before other handlers.
@@ -216,18 +218,11 @@ export function NextRuns() {
                 className={`text-left flex flex-col gap-2 p-3 rounded-lg bg-secondary/40 border border-border transition focus:outline-none focus:ring-2 focus:ring-primary/60 hover:bg-secondary/55 active:scale-[0.98] ${isSel ? 'ring-2 ring-primary shadow-[0_0_0_1px_var(--ring)]' : ''}`}
                 onClick={() => handleItemClick(j)}
               >
-                <label className={`flex items-center gap-3 cursor-pointer`}>
-                  {/* Radio-styled checkbox only visible in selection mode */}
+                <div className="flex items-center gap-3">
+                  {/* Visual radio/check indicator (no input) appears once there is at least one selected */}
                   {selectedCount > 0 && (
-                    <span className="run-radio">
-                      <input
-                        type="checkbox"
-                        className="run-radio-input"
-                        checked={!!selected[keyFor(j)]}
-                        onChange={() => toggleOne(j)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      <span className="run-radio-design" />
+                    <span className="run-radio pointer-events-none">
+                      <span className={`run-radio-design ${isSel ? 'is-checked' : ''}`} />
                     </span>
                   )}
                   <div className="text-sm">
@@ -241,7 +236,7 @@ export function NextRuns() {
                       </div>
                     ) : null}
                   </div>
-                </label>
+                </div>
               </button>
             )})}
           </div>
