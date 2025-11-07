@@ -274,16 +274,16 @@
     width: 22px;
     height: 22px;
     border-radius: 9999px;
-    background: linear-gradient(to right bottom, oklch(0.75 0.14 140), oklch(0.65 0.15 195));
+    background: #ffffff; /* unselected appears white */
     position: relative;
-    box-shadow: 0 0 0 1px rgba(0,0,0,0.25) inset;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.25) inset; /* subtle border */
   }
   .run-radio-design::after {
     content: '';
     position: absolute;
     inset: 4px;
     border-radius: 9999px;
-    background: oklch(0.85 0 240 / 0.9);
+    background: #22c55e; /* green center when selected */
     transform: scale(0);
     transition: transform 0.18s ease;
   }

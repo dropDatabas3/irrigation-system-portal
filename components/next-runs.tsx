@@ -226,9 +226,12 @@ export function NextRuns() {
                     </span>
                   )}
                   <div className="text-sm">
-                    <div className="text-foreground flex items-center gap-2">
+                    <div className="text-foreground flex items-center gap-2 flex-wrap">
                       <Clock className="w-4 h-4 text-primary" />
                       {formatWhen(j.at)}
+                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-primary/15 text-primary border border-primary/30">
+                        {numValveToLabel(j.valve)}
+                      </span>
                     </div>
                     {Number.isFinite(j.liters) && j.liters! > 0 ? (
                       <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">

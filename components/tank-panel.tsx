@@ -97,7 +97,6 @@ function TankModal({ originRect, tankInfo, onRequestClose, closing }: { originRe
     left: '50vw',
     top: '50vh',
     transform: 'translate(-50%, -50%)',
-    zIndex: 60,
     width: 'min(460px, 92vw)',
     maxHeight: '85vh',
     // Provide offsets for animation
@@ -112,7 +111,7 @@ function TankModal({ originRect, tankInfo, onRequestClose, closing }: { originRe
       <div
         ref={ref}
         style={style}
-        className={`relative overflow-visible ${mounted ? (closing ? 'animate-to-origin' : 'animate-from-origin') : ''}`}
+        className={`relative z-50 overflow-visible ${mounted ? (closing ? 'animate-to-origin' : 'animate-from-origin') : ''}`}
       >
         {/* Close button inside modal bounds */}
         <button
