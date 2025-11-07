@@ -137,7 +137,9 @@ export function NextRuns() {
     })
     setConfirmBusy(true)
     try {
-      await fetch('/api/job-overrides', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete-many', items }) })
+      const res = await fetch('/api/job-overrides', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete-many', items }) })
+      const j = await res.json().catch(() => null)
+      if (j?.ok) console.info(`[NextRuns] delete-many: suppressed=${j.suppressed} upserted=${j.upserted} published=${j.published} jobsCount=${j.jobsCount}`)
       clearSelection()
       setOverridesVersion(v => v + 1)
     } catch (e) { console.error('delete-many failed', e) } finally { setConfirmBusy(false); setConfirmBulkOpen(false) }
@@ -154,14 +156,23 @@ export function NextRuns() {
 
   // Desktop: click selects/toggles. Mobile: long-press selects.
   function handleItemClick(j: { at: number; valve: number }) {
-    if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
-      // On touch devices, ignore single tap for selection to avoid accidental selects
-      // Single tap could be repurposed later (open details). Use long-press below.
+    const isTouch = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches)
+    const k = keyFor(j)
+    if (isTouch && !selectionMode) {
+      // On touch devices, require long-press to enter selection mode (ignore simple tap)
       return
     }
-    // Desktop
-    if (selectedCount === 0) selectOne(j)
-    else toggleOne(j)
+    // If already in selection mode, toggle; if clicking the only selected item, clear selection
+    if (selectionMode) {
+      if (selectedCount === 1 && selected[k]) {
+        clearSelection()
+      } else {
+        toggleOne(j)
+      }
+      return
+    }
+    // Desktop (or any non-touch), when not in selection mode: start with single select
+    selectOne(j)
   }
 
   // Long-press detection for touch
@@ -171,9 +182,10 @@ export function NextRuns() {
     const k = keyFor(j)
     setPressingKey(k)
     const t = setTimeout(() => {
+      // Enter selection mode by selecting this item after a 2s press
       selectOne(j)
       setPressingKey(null)
-    }, 500)
+    }, 2000)
     ;(longPressTimers as any).set(k, t)
   }
   function onTouchEnd(j: { at: number; valve: number }) {

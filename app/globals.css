@@ -242,13 +242,53 @@
   .run-radio-input:checked + .run-radio-design::before {
     transform: scale(0);
   }
-  /* Tank modal animations */
-  @keyframes modalIn {
-    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.85) rotateX(15deg); }
-    60% { opacity: 1; transform: translate(-50%, -50%) scale(1.02) rotateX(0deg); }
-    100% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotateX(0deg); }
+  /* Tank modal animations - from origin to center using CSS var offsets */
+  @keyframes modalFromOrigin {
+    0% { opacity: 0; transform: translate(calc(-50% + var(--from-x, 0px)), calc(-50% + var(--from-y, 0px))) scale(0.92); }
+    60% { opacity: 1; transform: translate(calc(-50% + var(--from-x, 0px) * 0.15), calc(-50% + var(--from-y, 0px) * 0.15)) scale(1.02); }
+    100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
   }
-  .animate-modalIn { animation: modalIn 320ms cubic-bezier(.25,.8,.25,1) forwards; }
+  .animate-from-origin { animation: modalFromOrigin 360ms cubic-bezier(.22,.75,.25,1) forwards; }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: .5; } }
   .animate-fadeIn { animation: fadeIn 180ms ease-out forwards; }
+  @keyframes fadeOut { from { opacity: .5; } to { opacity: 0; } }
+  .animate-fadeOut { animation: fadeOut 160ms ease-in forwards; }
+
+  @keyframes modalToOrigin {
+    0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0; transform: translate(calc(-50% + var(--from-x, 0px)), calc(-50% + var(--from-y, 0px))) scale(0.92); }
+  }
+  .animate-to-origin { animation: modalToOrigin 260ms cubic-bezier(.3,.7,.4,1) forwards; }
+
+  /* Loader overlay styles */
+  .loader-meta svg { filter: url('#loader-metaball'); }
+  .loader-meta .segment { stroke: rgba(0,0,0,0); stroke-width: 10; stroke-linecap: round; }
+  .loader-meta .joint { fill: oklch(0.6 0.12 210 / 0.9); stroke-width: 5px; }
+  .loader-meta .arm { animation: loader-rotate 26s ease-in-out infinite; transform-origin: 250px 250px; }
+  .loader-meta #loader-mir.arm { scale: -0.25; }
+  .loader-meta .arm { scale: 0.25; }
+  .loader-meta .arm1 { transform-origin: 300px 200px; animation: loader-rotate 19s ease-in-out infinite; }
+  .loader-meta .arm2 { transform-origin: 400px 200px; animation: loader-rotate 13s ease-in-out infinite; }
+  .loader-meta .arm3 { transform-origin: 490px 200px; animation: loader-rotate 9s ease-in-out infinite; }
+  @keyframes loader-rotate {
+    0% { transform: rotate(-90deg); }
+    25% { transform: rotate(360deg); }
+    50% { transform: rotate(90deg); }
+    75% { transform: rotate(-360deg); }
+    100% { transform: rotate(-90deg); }
+  }
+  .loader-dots::after { content: ''; display: inline-block; width: 1.5ch; text-align: left; animation: dots-step 1.2s steps(3,end) infinite; }
+  @keyframes dots-step {
+    0% { content: ''; }
+    33% { content: '.'; }
+    66% { content: '..'; }
+    100% { content: '...'; }
+  }
+  /* Dashboard fade-in after loader */
+  @keyframes dashboardFadeIn {
+    0% { opacity: 0; filter: blur(6px) saturate(60%); }
+    55% { opacity: 1; filter: blur(1.6px) saturate(90%); }
+    100% { opacity: 1; filter: blur(0) saturate(100%); }
+  }
+  .animate-dashboard-in { animation: dashboardFadeIn 480ms cubic-bezier(.24,.8,.32,1) forwards; }
 }
