@@ -65,9 +65,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const idNum = Number((v as any)?.id)
       if (!sch || !Number.isFinite(idNum) || idNum < 1 || idNum > 3) continue
       const valveKey = (`v${idNum}`) as 'v1'|'v2'|'v3'
-      const liters = Number.isFinite(sch.liters) ? Number(sch.liters) : 0
+        const liters = Number.isFinite(sch.liters) ? Number(sch.liters) : 0
+        const persistedAnchor = Number.isFinite((sch as any)?.anchorMs) ? Number((sch as any).anchorMs) : undefined
   const anchorMs = lastResultByValve[idNum] || Date.now()
-  const common = { valveId: valveKey, liters, horizonDays: 7, anchorMs }
+        const common = { valveId: valveKey, liters, horizonDays: 7, anchorMs: persistedAnchor || anchorMs }
       let result: any = { jobs: [] as any[] }
       try {
         if (sch.mode === 'daily') result = buildJobs({ ...common, mode: 'daily', scheduleTimes: Array.isArray(sch.times) ? sch.times : undefined } as any)

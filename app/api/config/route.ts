@@ -92,9 +92,10 @@ export async function POST(req: Request) {
       
       const valveKey = `v${idNum}` as 'v1' | 'v2' | 'v3'
       const mode = sch.mode
-      const liters = Number.isFinite(sch.liters) ? Number(sch.liters) : 0
+  const liters = Number.isFinite(sch.liters) ? Number(sch.liters) : 0
       
-  const anchorMs = lastResultByValve[idNum] || Date.now()
+  const persistedAnchor = Number.isFinite((sch as any)?.anchorMs) ? Number((sch as any).anchorMs) : undefined
+  const anchorMs = persistedAnchor || lastResultByValve[idNum] || Date.now()
   const common = { valveId: valveKey, liters, horizonDays: 7, anchorMs }
       let result: any = { jobs: [] }
       
@@ -307,11 +308,12 @@ export async function GET(req: Request) {
         const idNum = Number((v as any)?.id)
         if (!sch || !Number.isFinite(idNum) || idNum < 1 || idNum > 3) continue
         const valveKey = (`v${idNum}`) as 'v1'|'v2'|'v3'
-        const mode = sch.mode
-        // Use liters from schedule if available, else default to 0
-        const liters = Number.isFinite(sch.liters) ? Number(sch.liters) : 0
-        const anchorMs = lastResultByValve[idNum] || Number((v as any)?.updatedAt) || Date.now()
-        const common = { valveId: valveKey, liters, horizonDays: 7, anchorMs }
+  const mode = sch.mode
+  // Use liters from schedule if available, else default to 0
+  const liters = Number.isFinite(sch.liters) ? Number(sch.liters) : 0
+  const persistedAnchor = Number.isFinite((sch as any)?.anchorMs) ? Number((sch as any).anchorMs) : undefined
+  const anchorMs = persistedAnchor || lastResultByValve[idNum] || Number((v as any)?.updatedAt) || Date.now()
+  const common = { valveId: valveKey, liters, horizonDays: 7, anchorMs }
         let result: any = { jobs: [] as any[] }
         if (mode === 'daily') {
           result = buildJobs({ ...common, mode: 'daily', scheduleTimes: Array.isArray(sch.times) ? sch.times : undefined, tzOffsetMinutes } as any)
@@ -362,6 +364,10 @@ function normalizeSchedule(input: any) {
     return { mode, days: Array.isArray(input.days) ? input.days : [], startTime: input.startTime ?? '08:00', liters }
   }
   if (mode === 'interval') {
+    // anchorMs: persist initial creation moment to preserve interval phase across regenerations.
+    // Keep existing anchorMs if provided to avoid resetting phase when user edits other fields.
+    const existingAnchor = Number.isFinite(input.anchorMs) ? Number(input.anchorMs) : undefined
+    const anchorMs = existingAnchor || Date.now()
     return {
       mode,
       intervalDays: Number.isFinite(input.intervalDays) ? Number(input.intervalDays) : 0,
@@ -371,6 +377,7 @@ function normalizeSchedule(input: any) {
       consecutiveWaterings: Number.isFinite(input.consecutiveWaterings) ? Number(input.consecutiveWaterings) : undefined,
       wateringIntervalMinutes: Number.isFinite(input.wateringIntervalMinutes) ? Number(input.wateringIntervalMinutes) : undefined,
       liters,
+      anchorMs,
     }
   }
   if (mode === 'custom') {

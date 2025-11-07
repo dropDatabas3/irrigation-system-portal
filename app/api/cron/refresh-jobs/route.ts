@@ -105,7 +105,9 @@ export async function GET(req: Request) {
       const liters = Number.isFinite(sch.liters) ? Number(sch.liters) : 0
       
   const anchorMs = lastResultByValve[idNum] || v.updatedAt || Date.now()
-  const common = { valveId: valveKey, liters, horizonDays: 7, anchorMs }
+    // Prefer persisted anchorMs from schedule to preserve phase; fallback to last result/updatedAt
+    const persistedAnchor = Number.isFinite((sch as any)?.anchorMs) ? Number((sch as any).anchorMs) : undefined
+    const common = { valveId: valveKey, liters, horizonDays: 7, anchorMs: persistedAnchor || anchorMs }
       let result: any = { jobs: [] }
       
       try {
