@@ -104,7 +104,11 @@ function TankModal({ originRect, tankInfo, onRequestClose, closing }: { originRe
 
   return (
     <div className="fixed inset-0 z-50" aria-modal="true" role="dialog">
-      <div className={`absolute inset-0 bg-black/50 backdrop-blur-sm ${closing ? 'animate-fadeOut' : 'animate-fadeIn'}`} />
+      {/* Backdrop fullscreen con blur más intenso */}
+      <div
+        className={`fixed inset-0 bg-background/40 dark:bg-black/50 backdrop-blur-md ${closing ? 'animate-fadeOut' : 'animate-fadeIn'}`}
+        aria-hidden
+      />
       <div
         ref={ref}
         style={style}

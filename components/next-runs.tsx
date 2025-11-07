@@ -158,7 +158,7 @@ export function NextRuns() {
     toggleOne(j)
   }
 
-  // Clear selection when clicking outside the card
+  // Clear selection when clicking outside the card. Use capture to run before other handlers.
   const [rootEl, setRootEl] = useState<HTMLDivElement | null>(null)
   useEffect(() => {
     function onDocPointerDown(e: any) {
@@ -166,8 +166,8 @@ export function NextRuns() {
       if (!rootEl) return
       if (!rootEl.contains(e.target)) clearSelection()
     }
-    document.addEventListener('pointerdown', onDocPointerDown)
-    return () => document.removeEventListener('pointerdown', onDocPointerDown)
+    document.addEventListener('pointerdown', onDocPointerDown, true)
+    return () => document.removeEventListener('pointerdown', onDocPointerDown, true)
   }, [rootEl, selectedCount])
 
   return (
@@ -206,10 +206,14 @@ export function NextRuns() {
           <p className="text-sm text-muted-foreground">No hay riegos próximos programados</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {items.map((j, idx) => (
-              <div
-                key={idx}
-                className={`flex flex-col gap-2 p-3 rounded-lg bg-secondary/40 border border-border transition ${selected[keyFor(j)] ? 'ring-2 ring-primary' : ''}`}
+            {items.map((j) => {
+              const k = keyFor(j)
+              const isSel = !!selected[k]
+              return (
+              <button
+                key={k}
+                type="button"
+                className={`text-left flex flex-col gap-2 p-3 rounded-lg bg-secondary/40 border border-border transition focus:outline-none focus:ring-2 focus:ring-primary/60 hover:bg-secondary/55 active:scale-[0.98] ${isSel ? 'ring-2 ring-primary shadow-[0_0_0_1px_var(--ring)]' : ''}`}
                 onClick={() => handleItemClick(j)}
               >
                 <label className={`flex items-center gap-3 cursor-pointer`}>
@@ -238,8 +242,8 @@ export function NextRuns() {
                     ) : null}
                   </div>
                 </label>
-              </div>
-            ))}
+              </button>
+            )})}
           </div>
         )}
       </CardContent>
