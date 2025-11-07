@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, Droplets, Pencil, Trash2, CheckSquare, XSquare, X, Check } from "lucide-react"
+import { Clock, Droplets, Pencil, Trash2, X, Check } from "lucide-react"
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useIrrigationEvents } from "@/lib/useEvents"
 import { useEffect, useState } from "react"
@@ -72,15 +72,21 @@ export function NextRuns() {
     return future
   })()
 
+  const selectedCount = Object.values(selected).filter(Boolean).length
+  const selectionMode = selectedCount > 0
+  const selectedJobs = items.filter(j => selected[`${j.valve}|${j.at}`])
+
   function keyFor(j: { at: number; valve: number }) { return `${j.valve}|${j.at}` }
 
-  function toggleSelect(j: { at: number; valve: number }) {
+  function selectOne(j: { at: number; valve: number }) {
+    setSelected({ [keyFor(j)]: true })
+  }
+
+  function toggleOne(j: { at: number; valve: number }) {
     setSelected(s => ({ ...s, [keyFor(j)]: !s[keyFor(j)] }))
   }
 
   function clearSelection() { setSelected({}) }
-
-  const selectedCount = Object.values(selected).filter(Boolean).length
 
   const [confirmBulkOpen, setConfirmBulkOpen] = useState(false)
   const [confirmSingleOpen, setConfirmSingleOpen] = useState<{ at: number; valve: number } | null>(null)
@@ -146,15 +152,77 @@ export function NextRuns() {
     } catch (e) { console.error('suppress failed', e) } finally { setConfirmBusy(false); setConfirmSingleOpen(null) }
   }
 
+  // Desktop: click selects/toggles. Mobile: long-press selects.
+  function handleItemClick(j: { at: number; valve: number }) {
+    if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
+      // On touch devices, ignore single tap for selection to avoid accidental selects
+      // Single tap could be repurposed later (open details). Use long-press below.
+      return
+    }
+    // Desktop
+    if (selectedCount === 0) selectOne(j)
+    else toggleOne(j)
+  }
+
+  // Long-press detection for touch
+  const [pressingKey, setPressingKey] = useState<string | null>(null)
+  const longPressTimers = new Map<string, any>()
+  function onTouchStart(j: { at: number; valve: number }) {
+    const k = keyFor(j)
+    setPressingKey(k)
+    const t = setTimeout(() => {
+      selectOne(j)
+      setPressingKey(null)
+    }, 500)
+    ;(longPressTimers as any).set(k, t)
+  }
+  function onTouchEnd(j: { at: number; valve: number }) {
+    const k = keyFor(j)
+    const t = (longPressTimers as any).get(k)
+    if (t) { clearTimeout(t); (longPressTimers as any).delete(k) }
+    setPressingKey(null)
+  }
+
+  // Clear selection when clicking outside the card
+  const [rootEl, setRootEl] = useState<HTMLDivElement | null>(null)
+  useEffect(() => {
+    function onDocPointerDown(e: any) {
+      if (!selectionMode) return
+      if (!rootEl) return
+      if (!rootEl.contains(e.target)) clearSelection()
+    }
+    document.addEventListener('pointerdown', onDocPointerDown)
+    return () => document.removeEventListener('pointerdown', onDocPointerDown)
+  }, [rootEl, selectionMode])
+
   return (
-    <Card className="gradient-border">
+    <Card className="gradient-border" ref={setRootEl as any}>
       <CardHeader>
         <CardTitle className="text-foreground">Próximos Riegos</CardTitle>
-        {items.length > 0 && (<CardDescription>Próximas 10 ejecuciones programadas {selectedCount > 0 && `(${selectedCount} seleccionados)`}</CardDescription>)}
-        {selectedCount > 0 && (
-          <div className="flex gap-2 mt-2">
-            <Button variant="destructive" size="sm" disabled={submitting} onClick={handleDeleteSelected}><Trash2 className="w-4 h-4" /> Borrar</Button>
-            <Button variant="outline" size="sm" disabled={submitting} onClick={clearSelection}><X className="w-4 h-4" /> Cancelar</Button>
+        {items.length > 0 && (
+          <CardDescription>
+            Próximas 10 ejecuciones programadas {selectedCount > 0 && `(${selectedCount} seleccionados)`}
+          </CardDescription>
+        )}
+        {selectionMode && (
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            {selectedCount === 1 ? (
+              <>
+                <Button variant="default" size="sm" disabled={submitting} onClick={() => { const j = selectedJobs[0]; if (j) openEdit(j) }}>
+                  <Pencil className="w-4 h-4 mr-1" /> Editar
+                </Button>
+                <Button variant="destructive" size="sm" disabled={submitting} onClick={() => { const j = selectedJobs[0]; if (j) suppressJob(j) }}>
+                  <Trash2 className="w-4 h-4 mr-1" /> Borrar
+                </Button>
+              </>
+            ) : (
+              <Button variant="destructive" size="sm" disabled={submitting} onClick={handleDeleteSelected}>
+                <Trash2 className="w-4 h-4 mr-1" /> Borrar seleccionados
+              </Button>
+            )}
+            <Button variant="outline" size="sm" disabled={submitting} onClick={clearSelection}>
+              <X className="w-4 h-4 mr-1" /> Cancelar
+            </Button>
           </div>
         )}
       </CardHeader>
@@ -164,30 +232,39 @@ export function NextRuns() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {items.map((j, idx) => (
-              <div key={idx} className={`flex flex-col gap-2 p-3 rounded-lg bg-secondary/40 border border-border ${selected[keyFor(j)] ? 'ring-2 ring-primary' : ''}`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Badge variant="outline" className="text-xs cursor-pointer" onClick={() => toggleSelect(j)}>
-                      {numValveToLabel(j.valve)}
-                    </Badge>
-                    <div className="text-sm">
-                      <div className="text-foreground flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-primary" />
-                        {formatWhen(j.at)}
-                      </div>
-                      {Number.isFinite(j.liters) && j.liters! > 0 ? (
-                        <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                          <Droplets className="w-3 h-3" /> {j.liters} L
-                        </div>
-                      ) : null}
+              <div
+                key={idx}
+                className={`flex flex-col gap-2 p-3 rounded-lg bg-secondary/40 border border-border transition ${selected[keyFor(j)] ? 'ring-2 ring-primary' : ''}`}
+                onClick={() => handleItemClick(j)}
+                onTouchStart={() => onTouchStart(j)}
+                onTouchEnd={() => onTouchEnd(j)}
+              >
+                <label className={`flex items-center gap-3 ${selectionMode ? 'cursor-pointer' : 'cursor-default'}`}>
+                  {/* Radio-styled checkbox only visible in selection mode */}
+                  {selectionMode && (
+                    <span className="run-radio">
+                      <input
+                        type="checkbox"
+                        className="run-radio-input"
+                        checked={!!selected[keyFor(j)]}
+                        onChange={() => toggleOne(j)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span className="run-radio-design" />
+                    </span>
+                  )}
+                  <div className="text-sm">
+                    <div className="text-foreground flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-primary" />
+                      {formatWhen(j.at)}
                     </div>
+                    {Number.isFinite(j.liters) && j.liters! > 0 ? (
+                      <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                        <Droplets className="w-3 h-3" /> {j.liters} L
+                      </div>
+                    ) : null}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(j)} title="Editar"><Pencil className="w-4 h-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => suppressJob(j)} title="Omitir"><Trash2 className="w-4 h-4" /></Button>
-                    <Button variant={selected[keyFor(j)] ? 'secondary' : 'ghost'} size="icon" onClick={() => toggleSelect(j)} title="Seleccionar"><CheckSquare className="w-4 h-4" /></Button>
-                  </div>
-                </div>
+                </label>
               </div>
             ))}
           </div>

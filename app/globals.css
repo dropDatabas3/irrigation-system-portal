@@ -207,4 +207,48 @@
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
   }
+
+  /* Radio-styled checkbox for NextRuns selection */
+  .run-radio {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    position: relative;
+  }
+  .run-radio-input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+  }
+  .run-radio-design {
+    width: 22px;
+    height: 22px;
+    border-radius: 9999px;
+    background: linear-gradient(to right bottom, oklch(0.75 0.14 140), oklch(0.65 0.15 195));
+    position: relative;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.25) inset;
+  }
+  .run-radio-design::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background: oklch(0.85 0 240);
+    transform: scale(1.1);
+    transition: transform 0.2s ease;
+  }
+  .run-radio-input:checked + .run-radio-design::before {
+    transform: scale(0);
+  }
+  /* Tank modal animations */
+  @keyframes modalIn {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.85) rotateX(15deg); }
+    60% { opacity: 1; transform: translate(-50%, -50%) scale(1.02) rotateX(0deg); }
+    100% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotateX(0deg); }
+  }
+  .animate-modalIn { animation: modalIn 320ms cubic-bezier(.25,.8,.25,1) forwards; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: .5; } }
+  .animate-fadeIn { animation: fadeIn 180ms ease-out forwards; }
 }

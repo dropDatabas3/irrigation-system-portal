@@ -8,11 +8,13 @@ import { Button } from '@/components/ui/button'
 import { Droplets } from 'lucide-react'
 import { useIrrigationEvents } from '@/lib/useEvents'
 
-export function TankStatusCard() {
+type TankInitial = { currentLiters: number; capacityLiters: number; percent: number }
+
+export function TankStatusCard({ initial, disableInitialFetch = false }: { initial?: TankInitial | null; disableInitialFetch?: boolean }) {
   const { lastResult } = useIrrigationEvents()
-  const [current, setCurrent] = useState(0)
-  const [capacity, setCapacity] = useState(0)
-  const [percent, setPercent] = useState(0)
+  const [current, setCurrent] = useState(() => Math.max(0, Number(initial?.currentLiters) || 0))
+  const [capacity, setCapacity] = useState(() => Math.max(0, Number(initial?.capacityLiters) || 0))
+  const [percent, setPercent] = useState(() => Math.max(0, Math.min(100, Number(initial?.percent) || 0)))
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [volumeInput, setVolumeInput] = useState('')
@@ -33,12 +35,18 @@ export function TankStatusCard() {
   }
 
   useEffect(() => {
-    refresh()
+    if (disableInitialFetch && initial) {
+      setLoading(false)
+    } else {
+      refresh()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
-    if (lastResult) setTimeout(refresh, 250)
-  }, [lastResult])
+    if (!disableInitialFetch && lastResult) setTimeout(refresh, 250)
+    // If disableInitialFetch, let parent refresh values when needed
+  }, [lastResult, disableInitialFetch])
 
   const handleLoad = async () => {
     setSaving(true)

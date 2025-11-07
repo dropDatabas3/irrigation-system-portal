@@ -44,8 +44,22 @@ export function QuickActions() {
     router.push("/chip-info")
   }
 
-  const handleOpenTank = () => {
-    window.dispatchEvent(new CustomEvent('tank:open'))
+  const handleOpenTank = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+        if (!rect || !tankInfo) return
+        // Provide geometry + current tank metrics for animated modal open without refetch
+        window.dispatchEvent(
+          new CustomEvent('tank:open', {
+            detail: {
+              originRect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+              tankInfo: {
+                currentLiters: tankInfo.currentLiters,
+                capacityLiters: tankInfo.capacityLiters,
+                percent: tankInfo.percent,
+              },
+            },
+          })
+        )
   }
 
   const handleOpenProfiles = () => {

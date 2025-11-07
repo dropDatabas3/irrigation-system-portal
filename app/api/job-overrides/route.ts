@@ -78,18 +78,31 @@ export async function POST(req: Request) {
     }
 
     if (action === 'delete-many') {
+      // Interpret as: suppress many upcoming jobs (create overrides), not delete existing overrides
       const items: any[] = Array.isArray(body.items) ? body.items : []
       if (!items.length) return NextResponse.json({ ok: false, error: 'No items provided' }, { status: 400 })
-      const queries = items.map(i => ({ valve: Number(i.valve), at: Number(i.at) }))
-      await withDb(async (db) => {
+      const candidates = items
+        .map(i => ({ valve: Number(i.valve), at: Number(i.at) }))
+        .filter(q => Number.isFinite(q.valve) && Number.isFinite(q.at) && q.at > 0 && q.valve >= 1 && q.valve <= 8)
+      if (!candidates.length) return NextResponse.json({ ok: false, error: 'No valid items' }, { status: 400 })
+
+      const nowMs = Date.now()
+      const result = await withDb(async (db) => {
         const col = db.collection('jobOverrides')
-        for (const q of queries) {
-          if (!Number.isFinite(q.valve) || !Number.isFinite(q.at)) continue
-          await col.deleteOne({ deviceId, valve: q.valve, at: q.at })
-        }
+        const ops = candidates.map((q) => ({
+          updateOne: {
+            filter: { deviceId, valve: q.valve, at: q.at },
+            update: { $set: { deviceId, valve: q.valve, at: q.at, action: 'suppress', createdAt: nowMs } },
+            upsert: true,
+          }
+        }))
+        if (ops.length === 0) return { upserted: 0, matched: 0 }
+        const res = await col.bulkWrite(ops, { ordered: false })
+        return { upserted: res.upsertedCount || 0, matched: res.matchedCount || 0, modified: res.modifiedCount || 0 }
       })
+
       const pub = await republishMergedJobs(deviceId)
-      return NextResponse.json({ ok: true, deleted: queries.length, published: pub?.ok || false, jobsCount: pub?.jobsCount || 0 })
+      return NextResponse.json({ ok: true, suppressed: candidates.length, ...result, published: pub?.ok || false, jobsCount: pub?.jobsCount || 0 })
     }
 
     return NextResponse.json({ ok: false, error: 'Unsupported action' }, { status: 400 })
