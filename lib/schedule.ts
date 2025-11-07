@@ -183,3 +183,55 @@ export function buildJobs(opts: BuildJobsOpts) {
   jobs.sort((a, b) => a.at - b.at)
   return { jobs }
 }
+
+// ---- Job overrides merging ----
+export type MaterializedJob = { at: number; valve: number; liters: number }
+export type JobOverride = {
+  action: 'suppress' | 'replace'
+  valve: number
+  at: number // original or current at to suppress
+  newAt?: number
+  newLiters?: number
+}
+
+export function mergeOverrides(baseJobs: MaterializedJob[], overrides: JobOverride[]): MaterializedJob[] {
+  if (!Array.isArray(baseJobs) || baseJobs.length === 0) return []
+  const out: MaterializedJob[] = []
+  const suppressed = new Set<string>()
+
+  const key = (v: number, at: number) => `${v}|${at}`
+
+  // mark suppressions and collect replacements
+  const replacements: Array<{ valve: number; at: number; liters: number }> = []
+  for (const o of overrides || []) {
+    if (!o || typeof o !== 'object') continue
+    const v = Number(o.valve)
+    const at = Number(o.at)
+    if (!Number.isFinite(v) || !Number.isFinite(at)) continue
+    if (o.action === 'suppress') {
+      suppressed.add(key(v, at))
+    } else if (o.action === 'replace') {
+      suppressed.add(key(v, at))
+      const newAt = Number(o.newAt)
+      const newLiters = Number(o.newLiters)
+      if (Number.isFinite(newAt) && Number.isFinite(newLiters) && newLiters > 0) {
+        replacements.push({ valve: v, at: newAt, liters: newLiters })
+      }
+    }
+  }
+
+  for (const j of baseJobs) {
+    if (!j) continue
+    if (suppressed.has(key(j.valve, j.at))) continue
+    out.push({ at: j.at, valve: j.valve, liters: Number(j.liters) || 0 })
+  }
+
+  for (const r of replacements) out.push(r)
+
+  // dedupe by (valve, at) keeping the last occurrence
+  const map = new Map<string, MaterializedJob>()
+  for (const j of out) map.set(key(j.valve, j.at), j)
+  const merged = Array.from(map.values())
+  merged.sort((a, b) => a.at - b.at)
+  return merged
+}

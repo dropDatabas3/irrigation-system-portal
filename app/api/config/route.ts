@@ -1,7 +1,7 @@
 /* @ts-nocheck */
 import { NextResponse } from 'next/server'
 import { publishConfig, publishCmd, getDeviceId, ensureConnected } from '@/lib/mqttServer'
-import { buildJobs } from '@/lib/schedule'
+import { buildJobs, mergeOverrides } from '@/lib/schedule'
 import { saveConfigCreatedEvent } from '@/lib/persist'
 import { withDb } from '@/lib/db'
 import { eventBus } from '@/lib/eventBus'
@@ -146,8 +146,20 @@ export async function POST(req: Request) {
     }
     
     // Filtrar solo jobs futuros
-    const futureJobs = allJobs.filter(j => j.at > now)
+    let futureJobs = allJobs.filter(j => j.at > now)
     futureJobs.sort((a, b) => a.at - b.at)
+
+    // Aplicar overrides persistidos (suppress/replace)
+    try {
+      await withDb(async (db) => {
+        const col = db.collection('jobOverrides')
+        const horizonEnd = now + 8 * 24 * 3600
+        const overrides = await col.find({ deviceId, at: { $gt: now - 24 * 3600, $lt: horizonEnd } }).toArray()
+        if (overrides && overrides.length) {
+          futureJobs = mergeOverrides(futureJobs as any, overrides as any)
+        }
+      })
+    } catch {}
     
     console.log(`[CONFIG POST] Jobs materializados: ${allJobs.length}, futuros: ${futureJobs.length}`)
 
@@ -201,7 +213,7 @@ export async function POST(req: Request) {
         }
       }
 
-      ack = await waitForAck(futureJobs.length, 5000)
+  ack = await waitForAck(futureJobs.length, 5000)
       if (ack) {
         const p: any = ack
         const jobs = Array.isArray(p.jobs) ? p.jobs : []
@@ -341,6 +353,21 @@ export async function GET(req: Request) {
       }
     } catch {}
     jobs.sort((a, b) => (a?.at || 0) - (b?.at || 0))
+
+    // Aplicar overrides en la vista previa
+    try {
+      const nowSec = Math.floor(Date.now() / 1000)
+      await withDb(async (db) => {
+        const col = db.collection('jobOverrides')
+        const horizonEnd = nowSec + 8 * 24 * 3600
+        const overrides = await col.find({ deviceId, at: { $gt: nowSec - 24 * 3600, $lt: horizonEnd } }).toArray()
+        if (overrides && overrides.length) {
+          const merged = mergeOverrides(jobs as any, overrides as any)
+          jobs.length = 0
+          jobs.push(...merged)
+        }
+      })
+    } catch {}
 
     return NextResponse.json(
       { ok: true, config: { valves: valves ?? [], jobs }, ts: Date.now() },

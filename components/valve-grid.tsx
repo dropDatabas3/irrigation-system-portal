@@ -120,6 +120,7 @@ export function ValveGrid() {
 
   const [selectedValve, setSelectedValve] = useState<Valve | null>(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
+  const [sheetInitialTab, setSheetInitialTab] = useState<'metrics' | 'config'>('metrics')
 
   // Read enabled valves from last config-ack when available; fallback to API /api/config once
   useEffect(() => {
@@ -298,6 +299,7 @@ export function ValveGrid() {
 
   const openValveDetails = (valve: Valve) => {
     setSelectedValve(valve)
+    setSheetInitialTab('metrics')
     setIsSheetOpen(true)
   }
 
@@ -312,6 +314,31 @@ export function ValveGrid() {
 
   return (
     <>
+      {/* Global listener to open sheet from other dashboard widgets (e.g., Config Summary) */}
+      {(() => {
+        if (typeof window !== 'undefined') {
+          // attach once per mount
+          // eslint-disable-next-line react-hooks/rules-of-hooks
+          useEffect(() => {
+            const handler = (ev: any) => {
+              try {
+                const detail = ev?.detail || {}
+                const idStr: string = typeof detail?.id === 'string' ? detail.id : (`v${Number(detail?.id)}`)
+                const tab: 'metrics' | 'config' = detail?.tab === 'config' ? 'config' : 'metrics'
+                const found = valves.find(v => v.id === idStr)
+                if (found) {
+                  setSelectedValve(found)
+                  setSheetInitialTab(tab)
+                  setIsSheetOpen(true)
+                }
+              } catch {}
+            }
+            window.addEventListener('open-valve-sheet', handler as any)
+            return () => window.removeEventListener('open-valve-sheet', handler as any)
+          }, [valves])
+        }
+        return null
+      })()}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
@@ -350,6 +377,7 @@ export function ValveGrid() {
           open={isSheetOpen}
           onOpenChange={setIsSheetOpen}
           onUpdate={updateValve}
+          initialTab={sheetInitialTab}
           onSelectValveId={(id: string) => {
             const found = valves.find(v => v.id === id)
             if (found) setSelectedValve(found)

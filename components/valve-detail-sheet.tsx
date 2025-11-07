@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
@@ -37,9 +38,10 @@ interface ValveDetailSheetProps {
   onUpdate: (valve: Valve) => void
   onSelectValveId?: (id: string) => void
   enabledValveIds?: string[]
+  initialTab?: 'metrics' | 'config'
 }
 
-export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelectValveId, enabledValveIds }: ValveDetailSheetProps) {
+export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelectValveId, enabledValveIds, initialTab = 'metrics' }: ValveDetailSheetProps) {
   const [editedValve, setEditedValve] = useState(valve)
   const [isTesting, setIsTesting] = useState(false)
   // Control de habilitación separado del estado de ejecución (activa/inactiva)
@@ -76,6 +78,7 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
   const [appliedProfileName, setAppliedProfileName] = useState<string | null>(null)
   const [originalScheduleJson, setOriginalScheduleJson] = useState<string | null>(null)
   const [initialSnapshot, setInitialSnapshot] = useState<string | null>(null)
+  const [tabValue, setTabValue] = useState<'metrics' | 'config'>(initialTab)
 
   // Load per-valve metrics
   const deviceValve = toDeviceValve(valve.id as any)
@@ -96,6 +99,10 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
     setHasValveJobs(false)
     // Reset config fetch flag when sheet opens OR valve changes
     setConfigFetched(false)
+    // Initialize tab selection when opening
+    if (open) {
+      setTabValue(initialTab || 'metrics')
+    }
   }, [valve.id, open])
 
   useEffect(() => {
@@ -326,7 +333,13 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
     }
   }
 
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false)
+  const [confirmBusy, setConfirmBusy] = useState(false)
   const handleClearSchedule = async () => {
+    setConfirmClearOpen(true)
+  }
+  const doClearSchedule = async () => {
+    setConfirmBusy(true)
     try {
       const idStr = String(valve.id)
       const res = await fetch(`/api/valves/${idStr}/clear-schedule`, { method: 'POST' })
@@ -336,6 +349,9 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
       setSaveOk('Rutina borrada')
     } catch (e) {
       setSaveErr((e as any)?.message || 'Error al borrar la rutina')
+    } finally {
+      setConfirmBusy(false)
+      setConfirmClearOpen(false)
     }
   }
 
@@ -482,7 +498,7 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
           return <SheetTitle className="sr-only">{hiddenTitle}</SheetTitle>
         })()}
 
-        <Tabs defaultValue="metrics" className="relative z-10">
+  <Tabs value={tabValue} onValueChange={(v: any) => setTabValue(v)} className="relative z-10">
           <TabsList className="grid w-full grid-cols-2 relative z-10">
             <TabsTrigger value="metrics" className="gap-2">
               <BarChart3 className="w-4 h-4" />
@@ -763,6 +779,23 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
 
                 {hasValveJobs && (
                   <>
+                    <ConfirmDialog
+                      open={confirmClearOpen}
+                      destructive
+                      loading={confirmBusy}
+                      title="Borrar rutina de riego"
+                      description={(
+                        <>
+                          <p>Esta acción eliminará TODAS las ejecuciones futuras para esta válvula.</p>
+                          <p className="font-medium text-foreground">No se volverán a generar hasta que configures una nueva programación.</p>
+                          <p className="text-red-500">Acción irreversible.</p>
+                        </>
+                      )}
+                      confirmLabel="Borrar"
+                      cancelLabel="Cancelar"
+                      onConfirm={doClearSchedule}
+                      onCancel={() => setConfirmClearOpen(false)}
+                    />
                     {/* Water Amount Configuration - Moved inside schedule block */}
                     <div className="p-4 rounded-lg bg-secondary/30 border border-border">
                       <div className="flex items-center gap-2 mb-3">

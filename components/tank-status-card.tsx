@@ -62,7 +62,7 @@ export function TankStatusCard() {
   }
 
   return (
-    <Card className="gradient-border">
+    <Card className="gradient-border relative overflow-hidden">
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
           <Droplets className="w-5 h-5 text-cyan-500" />
@@ -76,8 +76,18 @@ export function TankStatusCard() {
             <p className="text-2xl font-bold text-foreground">{loading ? '—' : `${Math.round(current)} L`}</p>
             <p className="text-xs text-muted-foreground">{loading ? '' : `${percent}% ${capacity ? `· Capacidad ${Math.round(capacity)} L` : ''}`}</p>
           </div>
-          <div className="w-20 h-20 rounded-xl overflow-hidden border border-border bg-secondary/40 relative">
-            <div className="absolute bottom-0 left-0 right-0 bg-cyan-500/80" style={{ height: `${percent}%` }} />
+          <div className="w-24 h-24 rounded-xl overflow-hidden border border-border bg-secondary/40 relative">
+            {/* Static fill height back layer */}
+            <div className="absolute inset-0 flex items-end">
+              <div className="relative w-full" style={{ height: `${percent}%` }}>
+                {/* Liquid animated layer */}
+                <div className="liquid-tank absolute bottom-0 left-0 right-0 h-full" />
+                {/* Surface shimmer */}
+                <div className="absolute top-0 left-0 right-0 h-1 bg-cyan-200/40 mix-blend-screen" />
+              </div>
+            </div>
+            {/* Outline mask for crisp edges */}
+            <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-cyan-400/30" />
           </div>
         </div>
 

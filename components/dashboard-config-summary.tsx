@@ -79,7 +79,18 @@ export function DashboardConfigSummary() {
               const enabled = v.enabled !== false && v.id !== 4 // v4 reservada
               const title = v.id === 4 ? "Deshabilitada por sistema (hardware)" : enabled ? "Habilitada" : "Deshabilitada"
               return (
-                <div key={v.id} className={`rounded-lg border p-3 sm:p-4 bg-card/40 ${!enabled ? 'opacity-60' : ''}`} title={title}>
+                <div
+                  key={v.id}
+                  className={`rounded-lg border p-3 sm:p-4 bg-card/40 ${!enabled ? 'opacity-60' : ''} ${enabled ? 'cursor-pointer hover:bg-card/60 transition-colors' : ''}`}
+                  title={title}
+                  onClick={() => {
+                    if (!enabled) return
+                    const idStr = `v${Number(v.id)}`
+                    try {
+                      window.dispatchEvent(new CustomEvent('open-valve-sheet', { detail: { id: idStr, tab: 'config' } }))
+                    } catch {}
+                  }}
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 min-w-0">
                       <Droplets className="w-4 h-4" />

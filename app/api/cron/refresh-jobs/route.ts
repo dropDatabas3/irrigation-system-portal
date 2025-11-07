@@ -1,7 +1,7 @@
 /* @ts-nocheck */
 import { NextResponse } from 'next/server'
 import { publishConfig, getDeviceId, ensureConnected } from '@/lib/mqttServer'
-import { buildJobs } from '@/lib/schedule'
+import { buildJobs, mergeOverrides } from '@/lib/schedule'
 import { withDb } from '@/lib/db'
 
 export const runtime = 'nodejs'
@@ -153,10 +153,22 @@ export async function GET(req: Request) {
     }
 
     // 3. Filtrar solo jobs futuros
-    const futureJobs = allJobs.filter(j => j.at > now)
+  let futureJobs = allJobs.filter(j => j.at > now)
     
     // 4. Ordenar por timestamp
     futureJobs.sort((a, b) => a.at - b.at)
+
+    // Merge overrides (suppress/replace) before publishing
+    try {
+      await withDb(async (db) => {
+        const col = db.collection('jobOverrides')
+        const horizonEnd = now + 8 * 24 * 3600
+        const overrides = await col.find({ deviceId, at: { $gt: now - 24 * 3600, $lt: horizonEnd } }).toArray()
+        if (overrides && overrides.length) {
+          futureJobs = mergeOverrides(futureJobs as any, overrides as any)
+        }
+      })
+    } catch {}
 
     console.log(`[CRON] Jobs materializados: ${allJobs.length}, futuros: ${futureJobs.length}`)
 
