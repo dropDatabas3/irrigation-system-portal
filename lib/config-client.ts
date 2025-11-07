@@ -45,7 +45,11 @@ export async function fetchConfigDedupe(force = false): Promise<ConfigResponse> 
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
       try {
-        const res = await fetch('/api/config', { cache: 'no-store', signal: controller.signal })
+        const res = await fetch('/api/config', {
+          cache: 'no-store',
+          signal: controller.signal,
+          headers: { 'x-tz-offset-minutes': String(-new Date().getTimezoneOffset()) },
+        })
         clearTimeout(timeoutId)
         const json = (await res.json()) as ConfigResponse
         return json
