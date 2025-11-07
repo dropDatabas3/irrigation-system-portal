@@ -1,6 +1,9 @@
 "use client"
 
 import { useEffect, useRef, useState } from 'react'
+// Use runtime require to avoid type dependency on @types/react-dom
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const ReactDOM: any = typeof window !== 'undefined' ? require('react-dom') : null
 import { TankStatusCard } from '@/components/tank-status-card'
 
 interface TankInfoPayload { currentLiters: number; capacityLiters: number; percent: number }
@@ -102,19 +105,10 @@ function TankModal({ originRect, tankInfo, onRequestClose, closing }: { originRe
     ['--from-y' as any]: `${dy}px`,
   }
 
-  return (
+  const modalTree = (
     <div className="fixed inset-0 z-50" aria-modal="true" role="dialog">
-      {/* Backdrop fullscreen con blur real y z-index explícitos para garantizar contraste */}
-      <div
-        className={`fixed inset-0 ${closing ? 'animate-fadeOut' : 'animate-fadeIn'}`}
-        style={{
-          zIndex: 59,
-          background: 'rgba(0,0,0,0.45)',
-          backdropFilter: 'blur(10px)',
-          WebkitBackdropFilter: 'blur(10px)'
-        }}
-        aria-hidden
-      />
+      {/* Backdrop: mismo enfoque que el loader */}
+      <div className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${closing ? 'animate-fadeOut' : 'animate-fadeIn'}`} aria-hidden />
       <div
         ref={ref}
         style={style}
@@ -134,4 +128,8 @@ function TankModal({ originRect, tankInfo, onRequestClose, closing }: { originRe
       </div>
     </div>
   )
+
+  // Portal al body para evitar stacking contexts/filters que rompan el blur
+  if (typeof document !== 'undefined' && ReactDOM?.createPortal) return ReactDOM.createPortal(modalTree, document.body)
+  return modalTree
 }
