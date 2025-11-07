@@ -73,7 +73,6 @@ export function NextRuns() {
   })()
 
   const selectedCount = Object.values(selected).filter(Boolean).length
-  const selectionMode = selectedCount > 0
   const selectedJobs = items.filter(j => selected[`${j.valve}|${j.at}`])
 
   function keyFor(j: { at: number; valve: number }) { return `${j.valve}|${j.at}` }
@@ -154,58 +153,22 @@ export function NextRuns() {
     } catch (e) { console.error('suppress failed', e) } finally { setConfirmBusy(false); setConfirmSingleOpen(null) }
   }
 
-  // Desktop: click selects/toggles. Mobile: long-press selects.
+  // Simple click/tap toggles selection; clicking again deselects.
   function handleItemClick(j: { at: number; valve: number }) {
-    const isTouch = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches)
-    const k = keyFor(j)
-    if (isTouch && !selectionMode) {
-      // On touch devices, require long-press to enter selection mode (ignore simple tap)
-      return
-    }
-    // If already in selection mode, toggle; if clicking the only selected item, clear selection
-    if (selectionMode) {
-      if (selectedCount === 1 && selected[k]) {
-        clearSelection()
-      } else {
-        toggleOne(j)
-      }
-      return
-    }
-    // Desktop (or any non-touch), when not in selection mode: start with single select
-    selectOne(j)
-  }
-
-  // Long-press detection for touch
-  const [pressingKey, setPressingKey] = useState<string | null>(null)
-  const longPressTimers = new Map<string, any>()
-  function onTouchStart(j: { at: number; valve: number }) {
-    const k = keyFor(j)
-    setPressingKey(k)
-    const t = setTimeout(() => {
-      // Enter selection mode by selecting this item after a 2s press
-      selectOne(j)
-      setPressingKey(null)
-    }, 2000)
-    ;(longPressTimers as any).set(k, t)
-  }
-  function onTouchEnd(j: { at: number; valve: number }) {
-    const k = keyFor(j)
-    const t = (longPressTimers as any).get(k)
-    if (t) { clearTimeout(t); (longPressTimers as any).delete(k) }
-    setPressingKey(null)
+    toggleOne(j)
   }
 
   // Clear selection when clicking outside the card
   const [rootEl, setRootEl] = useState<HTMLDivElement | null>(null)
   useEffect(() => {
     function onDocPointerDown(e: any) {
-      if (!selectionMode) return
+      if (selectedCount === 0) return
       if (!rootEl) return
       if (!rootEl.contains(e.target)) clearSelection()
     }
     document.addEventListener('pointerdown', onDocPointerDown)
     return () => document.removeEventListener('pointerdown', onDocPointerDown)
-  }, [rootEl, selectionMode])
+  }, [rootEl, selectedCount])
 
   return (
     <Card className="gradient-border" ref={setRootEl as any}>
@@ -216,7 +179,7 @@ export function NextRuns() {
             Próximas 10 ejecuciones programadas {selectedCount > 0 && `(${selectedCount} seleccionados)`}
           </CardDescription>
         )}
-        {selectionMode && (
+  {selectedCount > 0 && (
           <div className="flex flex-wrap items-center gap-2 mt-2">
             {selectedCount === 1 ? (
               <>
@@ -248,12 +211,10 @@ export function NextRuns() {
                 key={idx}
                 className={`flex flex-col gap-2 p-3 rounded-lg bg-secondary/40 border border-border transition ${selected[keyFor(j)] ? 'ring-2 ring-primary' : ''}`}
                 onClick={() => handleItemClick(j)}
-                onTouchStart={() => onTouchStart(j)}
-                onTouchEnd={() => onTouchEnd(j)}
               >
-                <label className={`flex items-center gap-3 ${selectionMode ? 'cursor-pointer' : 'cursor-default'}`}>
+                <label className={`flex items-center gap-3 cursor-pointer`}>
                   {/* Radio-styled checkbox only visible in selection mode */}
-                  {selectionMode && (
+                  {selectedCount > 0 && (
                     <span className="run-radio">
                       <input
                         type="checkbox"

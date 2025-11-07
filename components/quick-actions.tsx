@@ -135,15 +135,18 @@ export function QuickActions() {
           <Button
             type="button"
             variant="outline"
-            className="h-auto py-4 flex-col gap-1 bg-transparent"
+            className="h-auto py-4 flex-col gap-1 bg-transparent relative overflow-hidden tank-btn"
             onClick={handleOpenTank}
             title="Estado del depósito"
           >
-            <div className="w-5 h-5 relative">
+            {/* Animated liquid background */}
+            <span aria-hidden className="tank-btn-liquid" />
+
+            <div className="w-5 h-5 relative z-10">
               <Image src="/water-tank-1.png" alt="Tanque" fill className="object-contain" sizes="20px" />
             </div>
-            <span className="text-sm font-medium">Depósito</span>
-            <span className="text-[10px] opacity-90">{tankInfo ? `${Math.round(tankInfo.currentLiters)}/${Math.round(tankInfo.capacityLiters)} L` : '—'}</span>
+            <span className="text-sm font-medium relative z-10">Depósito</span>
+            <span className="text-[10px] opacity-90 relative z-10">{tankInfo ? `${Math.round(tankInfo.currentLiters)}/${Math.round(tankInfo.capacityLiters)} L` : '—'}</span>
           </Button>
 
           <Button

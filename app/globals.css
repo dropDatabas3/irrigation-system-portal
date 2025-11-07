@@ -208,6 +208,54 @@
     to { transform: rotate(360deg); }
   }
 
+    /* Tank Quick Action Button liquid background */
+    .tank-btn {
+      --liquid-bg: linear-gradient(160deg, rgba(0,140,255,0.35), rgba(0,200,255,0.25));
+      --liquid-overlay: radial-gradient(circle at 20% 30%, rgba(0,180,255,0.5), transparent 65%),
+        radial-gradient(circle at 80% 60%, rgba(0,210,255,0.4), transparent 60%),
+        radial-gradient(circle at 50% 80%, rgba(0,160,255,0.45), transparent 65%);
+    }
+
+    .tank-btn-liquid {
+      position: absolute;
+      inset: 0;
+      background: var(--liquid-bg);
+      overflow: hidden;
+      border-radius: inherit;
+    }
+
+    .tank-btn-liquid::before,
+    .tank-btn-liquid::after {
+      content: "";
+      position: absolute;
+      left: -30%;
+      top: -30%;
+      width: 160%;
+      height: 160%;
+      background: var(--liquid-overlay);
+      mix-blend-mode: screen;
+      animation: tankBtnWaves 22s linear infinite;
+    }
+
+    .tank-btn-liquid::after {
+      animation-direction: reverse;
+      animation-duration: 28s;
+      filter: hue-rotate(10deg) saturate(1.15);
+    }
+
+    @keyframes tankBtnWaves {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .tank-btn:hover .tank-btn-liquid { filter: brightness(1.08) saturate(1.1); }
+    .tank-btn:active .tank-btn-liquid { filter: brightness(0.95) saturate(1.2); }
+
+    .dark .tank-btn-liquid { opacity: 0.9; }
+
+
+
+
   /* Radio-styled checkbox for NextRuns selection */
   .run-radio {
     display: inline-flex;
@@ -291,4 +339,128 @@
     100% { opacity: 1; filter: blur(0) saturate(100%); }
   }
   .animate-dashboard-in { animation: dashboardFadeIn 480ms cubic-bezier(.24,.8,.32,1) forwards; }
+}
+
+
+
+/* ===== Loader Agua 3D ===== */
+
+.loader-water-3d {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 1200px;
+}
+
+/* Glow exterior */
+.loader-water-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(148, 233, 255, 0.26), transparent 70%),
+    radial-gradient(circle at 80% 100%, rgba(56, 189, 248, 0.22), transparent 75%);
+  filter: blur(6px);
+  opacity: 0.9;
+  transform: translateZ(-18px);
+}
+
+/* Contenedor tipo cápsula / esfera */
+.loader-water-shell {
+  position: relative;
+  width: 82%;
+  height: 82%;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 30% 0%, rgba(148, 233, 255, 0.25), rgba(15, 23, 42, 0.98));
+  box-shadow:
+    0 0 28px rgba(56, 189, 248, 0.35),
+    0 12px 40px rgba(15, 23, 42, 0.95),
+    inset 0 0 18px rgba(15, 23, 42, 1);
+  transform-style: preserve-3d;
+  transform: rotateX(18deg) rotateZ(-10deg);
+  overflow: hidden;
+}
+
+/* Bandas de “agua” girando */
+.loader-water-orbit {
+  position: absolute;
+  width: 180%;
+  height: 140%;
+  left: -40%;
+  top: -18%;
+  border-radius: 45%;
+  background:
+    radial-gradient(circle at 10% 20%, rgba(148, 233, 255, 0.9), transparent 60%),
+    radial-gradient(circle at 80% 80%, rgba(56, 189, 248, 0.85), transparent 70%);
+  mix-blend-mode: screen;
+  transform-origin: 50% 50%;
+  filter: blur(1px);
+}
+
+.loader-water-orbit-front {
+  z-index: 2;
+  opacity: 0.95;
+  animation:
+    loader-water-spin 4s linear infinite,
+    loader-water-breathe 2.4s ease-in-out infinite alternate;
+  transform: translateZ(26px);
+}
+
+.loader-water-orbit-back {
+  z-index: 1;
+  opacity: 0.55;
+  filter: blur(3px);
+  animation:
+    loader-water-spin 6.2s linear infinite reverse,
+    loader-water-breathe 3.2s ease-in-out infinite alternate;
+  transform: translateZ(-24px);
+}
+
+/* Núcleo líquido */
+.loader-water-core {
+  position: absolute;
+  inset: 30%;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(248, 250, 252, 0.9), transparent 55%),
+    radial-gradient(circle at 80% 90%, rgba(56, 189, 248, 0.8), transparent 70%);
+  mix-blend-mode: screen;
+  opacity: 0.9;
+  filter: blur(0.5px);
+}
+
+/* Brillo especular arriba (efecto vidrio) */
+.loader-water-specular {
+  position: absolute;
+  width: 42%;
+  height: 22%;
+  top: 8%;
+  left: 16%;
+  border-radius: 999px;
+  background: radial-gradient(circle at 0 0, rgba(248, 250, 252, 0.95), transparent 75%);
+  opacity: 0.9;
+  filter: blur(1px);
+  transform: translateZ(40px);
+}
+
+/* Animaciones */
+
+@keyframes loader-water-spin {
+  0% {
+    transform: rotateZ(0deg);
+  }
+  100% {
+    transform: rotateZ(360deg);
+  }
+}
+
+@keyframes loader-water-breathe {
+  0% {
+    transform: scale(1) translateY(2px);
+  }
+  100% {
+    transform: scale(1.06) translateY(-3px);
+  }
 }
