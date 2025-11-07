@@ -104,17 +104,17 @@ function TankModal({ originRect, tankInfo, onRequestClose, closing }: { originRe
 
   return (
     <div className="fixed inset-0 z-50" aria-modal="true" role="dialog">
-      <div className={`absolute inset-0 bg-black/50 backdrop-blur ${closing ? 'animate-fadeOut' : 'animate-fadeIn'}`} />
+      <div className={`absolute inset-0 bg-black/50 backdrop-blur-sm ${closing ? 'animate-fadeOut' : 'animate-fadeIn'}`} />
       <div
         ref={ref}
         style={style}
         className={`relative overflow-visible ${mounted ? (closing ? 'animate-to-origin' : 'animate-from-origin') : ''}`}
       >
-        {/* Close button floating over the card */}
+        {/* Close button inside modal bounds */}
         <button
           onClick={onRequestClose}
           ref={closeBtnRef}
-          className="absolute -top-3 -right-3 z-10 w-8 h-8 rounded-full bg-black/60 text-white hover:bg-black/70 shadow-lg ring-1 ring-white/20 focus:outline-none focus:ring-2 focus:ring-cyan-400/60"
+          className="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-black/60 text-white hover:bg-black/70 shadow-lg ring-1 ring-white/20 focus:outline-none focus:ring-2 focus:ring-cyan-400/60"
           aria-label="Cerrar"
         >
           ×

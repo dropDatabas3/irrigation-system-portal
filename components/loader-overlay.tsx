@@ -4,15 +4,15 @@ import React from 'react'
 
 export function LoaderOverlay({ message = 'Cargando información' }: { message?: string }) {
   return (
-  <div className="fixed inset-0 z-70 flex items-center justify-center">
+  <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop with blur */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
       {/* Content */}
-  <div className="relative z-71 flex flex-col items-center gap-6 px-6">
+  <div className="relative z-50 flex flex-col items-center gap-6 px-6">
         {/* Metaball-inspired SVG loader */}
-        <div className="loader-meta select-none">
-          <svg viewBox="0 0 500 500" width="200" height="200">
+        <div className="loader-meta select-none w-56 h-56 sm:w-64 sm:h-64">
+          <svg viewBox="0 0 500 500" width="100%" height="100%">
             <g className="arm">
               <line className="segment" x1={250} y1={250} x2={300} y2={250} />
               <circle className="joint" cx={250} cy={250} r={64} />

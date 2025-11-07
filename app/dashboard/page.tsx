@@ -84,7 +84,7 @@ export default function DashboardPage() {
   }, [configReady, tankReady])
 
   return (
-  <div className={`min-h-screen bg-background ${loading ? 'blur-sm saturate-75 pointer-events-none' : (animateIn ? 'animate-dashboard-in' : '')}`}>
+  <div className={`min-h-screen bg-background relative ${animateIn ? 'animate-dashboard-in' : ''}`}>
       <DashboardHeader />
 
       <main className="container mx-auto p-4 md:p-6 lg:p-8 space-y-6">
