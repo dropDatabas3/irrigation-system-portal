@@ -234,7 +234,8 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
       if (scheduleTimes && scheduleTimes.length) payload.times = scheduleTimes.slice(0, 6)
       if (consecutiveWaterings > 1) {
         payload.consecutiveWaterings = consecutiveWaterings
-        payload.wateringIntervalMinutes = wateringIntervalMinutes
+        // Ensure wateringIntervalMinutes has a reasonable default (15 min) if not set
+        payload.wateringIntervalMinutes = wateringIntervalMinutes > 0 ? wateringIntervalMinutes : 15
       }
       return payload
     }

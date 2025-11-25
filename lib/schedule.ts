@@ -143,18 +143,23 @@ export function buildJobs(opts: BuildJobsOpts) {
     } else if (consecutiveCount > 1 && wateringGapMs > 0) {
       // NEW: Consecutive waterings with interval between each
       // Calculate main interval occurrences (every N days or N hours)
-      let at = computeFirstOccurrenceStart(opts.startTime || '08:00')
+      let baseAt = computeFirstOccurrenceStart(opts.startTime || '08:00')
       const until = Date.now() + horizonDays * 24 * 3600 * 1000
 
-      while (at <= until && jobs.length < 100) {
-        // For each main interval occurrence, create consecutive waterings
+      // Materialize multiple cycles within the horizon
+      let cycleIndex = 0
+      while (jobs.length < 100 && cycleIndex < 50) { // safety: max 50 cycles
+        const cycleStart = baseAt + (cycleIndex * stepMs)
+        if (cycleStart > until) break // cycle start beyond horizon
+        
+        // For each cycle, create consecutive waterings
         for (let i = 0; i < consecutiveCount; i++) {
-          const wateringTime = at + (i * wateringGapMs)
+          const wateringTime = cycleStart + (i * wateringGapMs)
           if (wateringTime <= until && jobs.length < 100) {
             pushJob(jobs, wateringTime, opts.valveId, liters)
           }
         }
-        at += stepMs
+        cycleIndex++
       }
     } else {
       // Fallback: single series separated by step (days+hours)
