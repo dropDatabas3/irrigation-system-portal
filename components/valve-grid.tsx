@@ -7,6 +7,7 @@ import { sendCmd } from "@/lib/api"
 import { toDeviceValve } from "@/lib/valves"
 import { useIrrigationEvents } from "@/lib/useEvents"
 import { fetchConfigDedupe } from "@/lib/config-client"
+import { motion } from "framer-motion"
 
 export interface Valve {
   id: string
@@ -353,18 +354,24 @@ export function ValveGrid() {
           </div>
         ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
-          {displayValves.map((valve) => {
+          {displayValves.map((valve, index) => {
             const num = valve.id === 'v1' ? 1 : valve.id === 'v2' ? 2 : valve.id === 'v3' ? 3 : 0
             const isEnabled = enabledSet.has(num)
             const v = { ...valve, enabled: isEnabled }
             return (
-            <ValveCard
-              key={v.id}
-              valve={v}
-              onToggle={() => toggleEnabled(v.id, !(v.enabled !== false))}
-              onClick={() => openValveDetails(v)}
-              showToggle={false}
-            />
+              <motion.div
+                key={v.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <ValveCard
+                  valve={v}
+                  onToggle={() => toggleEnabled(v.id, !v.enabled)}
+                  onClick={() => openValveDetails(v)}
+                  showToggle={false}
+                />
+              </motion.div>
             )
           })}
         </div>

@@ -1,7 +1,7 @@
 ﻿"use client"
 
 import { useEffect, useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { GlassCard } from '@/components/ui/glass-card'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend } from 'recharts'
 import { useMetricsFilter } from '@/lib/metrics-filter-context'
 
@@ -83,13 +83,13 @@ export function LitersPerDayChart() {
   }, [selectedValves, timeRange, customStart, customEnd])
 
   return (
-    <Card className="gradient-border">
-      <CardHeader className="p-4 sm:p-5 md:p-6">
-        <CardTitle className="text-lg sm:text-xl text-foreground">Litros por día</CardTitle>
-        <p className="text-sm text-muted-foreground mt-1">Evolución del consumo de agua</p>
-      </CardHeader>
-      <CardContent className="space-y-4 p-4 sm:p-5 md:p-6 pt-0">
-        <div className="w-full h-72 sm:h-80 md:h-96 lg:h-[420px]">
+    <GlassCard className="flex flex-col h-full">
+      <div className="p-6 pb-2">
+        <h3 className="text-lg font-medium text-foreground">Litros por día</h3>
+        <p className="text-sm text-muted-foreground">Evolución del consumo de agua</p>
+      </div>
+      <div className="p-6 pt-0 flex-1">
+        <div className="w-full h-[300px] sm:h-[350px] md:h-[400px]">
           {loading && (
             <div className="h-full w-full flex items-center justify-center text-sm text-muted-foreground">
               Cargando datos...
@@ -160,7 +160,7 @@ export function LitersPerDayChart() {
             </ResponsiveContainer>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </GlassCard>
   )
 }

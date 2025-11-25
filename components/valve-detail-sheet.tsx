@@ -7,7 +7,6 @@ import { buildJobs } from "@/lib/schedule"
 import { fetchConfigDedupe } from "@/lib/config-client"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -15,6 +14,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
+import { GlassCard } from "@/components/ui/glass-card"
 import {
   BarChart3,
   Calendar,
@@ -30,6 +30,7 @@ import {
   X,
 } from "lucide-react"
 import type { Valve } from "@/components/valve-grid"
+import { cn } from "@/lib/utils"
 
 interface ValveDetailSheetProps {
   valve: Valve
@@ -424,28 +425,6 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
   const scheduleJson = currentSchedule ? JSON.stringify(currentSchedule) : null
   const scheduleModifiedFromProfile = appliedProfileName && originalScheduleJson && scheduleJson && originalScheduleJson !== scheduleJson
 
-  const getStatusColor = (status: Valve["status"]) => {
-    switch (status) {
-      case "active":
-        return "bg-primary text-primary-foreground"
-      case "inactive":
-        return "bg-yellow-500 text-yellow-50"
-      default:
-        return "bg-muted text-muted-foreground"
-    }
-  }
-
-  const getStatusText = (status: Valve["status"]) => {
-    switch (status) {
-      case "active":
-        return "Activa"
-      case "inactive":
-        return "Inactiva"
-      default:
-        return "Desactivada"
-    }
-  }
-
   const toggleDay = (day: number) => {
     setSelectedDays((prev: number[]) => (prev.includes(day) ? prev.filter((d: number) => d !== day) : [...prev, day].sort()))
   }
@@ -470,669 +449,664 @@ export function ValveDetailSheet({ valve, open, onOpenChange, onUpdate, onSelect
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto p-5">
-        {/* Selector de válvula (solo válvulas habilitadas). La seleccionada se expande */}
-        <div className="mb-4 flex items-center gap-2">
-          {(enabledValveIds && enabledValveIds.length ? enabledValveIds : [valve.id]).map((id) => {
-            const selected = valve.id === id
-            const labelShort = id.toUpperCase() // V1, V2...
-            const num = id.replace(/^v/i, '')
-            const labelLong = `Válvula ${num}`
-            return (
-              <Button
-                key={id}
-                type="button"
-                size="sm"
-                variant={selected ? 'default' : 'outline'}
-                className={selected ? 'gradient-primary' : ''}
-                onClick={() => onSelectValveId && onSelectValveId(id)}
-              >
-                {selected ? labelLong : labelShort}
-              </Button>
-            )
-          })}
-        </div>
-        {/* Hidden title for a11y to satisfy Radix Dialog requirement */}
-        {(() => {
-          const num = String(valve.id).replace(/^v/i, '')
-          const hiddenTitle = `Válvula ${num}`
-          return <SheetTitle className="sr-only">{hiddenTitle}</SheetTitle>
-        })()}
+      <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto p-0 border-l border-white/10 bg-black/90 backdrop-blur-xl">
+        <div className="p-6 space-y-6">
+          {/* Selector de válvula (solo válvulas habilitadas). La seleccionada se expande */}
+          <div className="flex items-center gap-2">
+            {(enabledValveIds && enabledValveIds.length ? enabledValveIds : [valve.id]).map((id) => {
+              const selected = valve.id === id
+              const labelShort = id.toUpperCase() // V1, V2...
+              const num = id.replace(/^v/i, '')
+              const labelLong = `Válvula ${num}`
+              return (
+                <Button
+                  key={id}
+                  type="button"
+                  size="sm"
+                  variant={selected ? 'default' : 'outline'}
+                  className={cn(
+                    "transition-all duration-300",
+                    selected ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' : 'bg-white/5 border-white/10 hover:bg-white/10'
+                  )}
+                  onClick={() => onSelectValveId && onSelectValveId(id)}
+                >
+                  {selected ? labelLong : labelShort}
+                </Button>
+              )
+            })}
+          </div>
+          {/* Hidden title for a11y to satisfy Radix Dialog requirement */}
+          {(() => {
+            const num = String(valve.id).replace(/^v/i, '')
+            const hiddenTitle = `Válvula ${num}`
+            return <SheetTitle className="sr-only">{hiddenTitle}</SheetTitle>
+          })()}
 
-  <Tabs value={tabValue} onValueChange={(v: any) => setTabValue(v)} className="relative z-10">
-          <TabsList className="grid w-full grid-cols-2 relative z-10">
-            <TabsTrigger value="metrics" className="gap-2">
-              <BarChart3 className="w-4 h-4" />
-              Métricas
-            </TabsTrigger>
-            <TabsTrigger value="config" className="gap-2">
-              <Settings className="w-4 h-4" />
-              Configuración
-            </TabsTrigger>
-          </TabsList>
+          <Tabs value={tabValue} onValueChange={(v: any) => setTabValue(v)} className="relative z-10">
+            <TabsList className="grid w-full grid-cols-2 relative z-10 bg-white/5 border border-white/10">
+              <TabsTrigger value="metrics" className="gap-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
+                <BarChart3 className="w-4 h-4" />
+                Métricas
+              </TabsTrigger>
+              <TabsTrigger value="config" className="gap-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
+                <Settings className="w-4 h-4" />
+                Configuración
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Metrics Tab */}
-          <TabsContent value="metrics" className="space-y-4 mt-6">
-            <Card className="gradient-border">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
+            {/* Metrics Tab */}
+            <TabsContent value="metrics" className="space-y-4 mt-6">
+              <GlassCard className="p-5">
+                <div className="flex items-center gap-2 mb-4">
                   <Calendar className="w-5 h-5 text-primary" />
-                  Filtros de Métricas
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 relative z-10">
-                <div className="space-y-2">
-                  <Label>Rango de Tiempo</Label>
-                  <Select value={metricsDateRange} onValueChange={(value: any) => setMetricsDateRange(value)}>
-                    <SelectTrigger className="relative z-10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="z-100">
-                      <SelectItem value="week">Última Semana</SelectItem>
-                      <SelectItem value="month">Último Mes</SelectItem>
-                      <SelectItem value="year">Último Año</SelectItem>
-                      <SelectItem value="custom">Rango Personalizado</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <h3 className="text-lg font-semibold">Filtros de Métricas</h3>
                 </div>
-
-                {metricsDateRange === "custom" && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="start-date">Fecha Inicio</Label>
-                      <Input
-                        id="start-date"
-                        type="date"
-                        value={customStartDate}
-                        onChange={(e: any) => setCustomStartDate(e.target.value)}
-                        className="relative z-10"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="end-date">Fecha Fin</Label>
-                      <Input
-                        id="end-date"
-                        type="date"
-                        value={customEndDate}
-                        onChange={(e: any) => setCustomEndDate(e.target.value)}
-                        className="relative z-10"
-                      />
-                    </div>
+                <div className="space-y-4 relative z-10">
+                  <div className="space-y-2">
+                    <Label>Rango de Tiempo</Label>
+                    <Select value={metricsDateRange} onValueChange={(value: any) => setMetricsDateRange(value)}>
+                      <SelectTrigger className="bg-black/20 border-white/10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="z-100">
+                        <SelectItem value="week">Última Semana</SelectItem>
+                        <SelectItem value="month">Último Mes</SelectItem>
+                        <SelectItem value="year">Último Año</SelectItem>
+                        <SelectItem value="custom">Rango Personalizado</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                )}
-              </CardContent>
-            </Card>
 
-            {/* Current Status */}
-            <Card className="gradient-border">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-primary" />
-                  Estado Actual
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Caudal Actual</p>
-                  <p className="text-2xl font-bold text-foreground">{valve.flowRate.toFixed(1)} L/min</p>
-                  {typeof (editedValve as any)?.flowLph === 'number' && (
-                    <p className="text-xs text-muted-foreground">{(editedValve as any).flowLph.toFixed(1)} L/h</p>
+                  {metricsDateRange === "custom" && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="start-date">Fecha Inicio</Label>
+                        <Input
+                          id="start-date"
+                          type="date"
+                          value={customStartDate}
+                          onChange={(e: any) => setCustomStartDate(e.target.value)}
+                          className="bg-black/20 border-white/10"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="end-date">Fecha Fin</Label>
+                        <Input
+                          id="end-date"
+                          type="date"
+                          value={customEndDate}
+                          onChange={(e: any) => setCustomEndDate(e.target.value)}
+                          className="bg-black/20 border-white/10"
+                        />
+                      </div>
+                    </div>
                   )}
                 </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Última Activación</p>
-                  <p className="text-lg font-semibold text-foreground">{valve.lastActive}</p>
-                </div>
-              </CardContent>
-            </Card>
+              </GlassCard>
 
-            {/* Water Usage Statistics */}
-            <Card className="gradient-border">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Droplets className="w-5 h-5 text-cyan-500" />
-                  Consumo de Agua
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+              {/* Current Status */}
+              <GlassCard className="p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Activity className="w-5 h-5 text-primary" />
+                  <h3 className="text-lg font-semibold">Estado Actual</h3>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-lg bg-secondary/50">
-                    <p className="text-xs text-muted-foreground mb-1">Últimos 7 días</p>
-                    <p className="text-xl font-bold text-foreground">{loadingMetrics ? '—' : `${(metrics?.seven.liters ?? 0).toFixed(2)} L`}</p>
-                    <p className="text-xs text-muted-foreground">{loadingMetrics ? '' : `${metrics?.seven.runs ?? 0} riegos`}</p>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Caudal Actual</p>
+                    <p className="text-2xl font-bold text-foreground">{valve.flowRate.toFixed(1)} L/min</p>
+                    {typeof (editedValve as any)?.flowLph === 'number' && (
+                      <p className="text-xs text-muted-foreground">{(editedValve as any).flowLph.toFixed(1)} L/h</p>
+                    )}
                   </div>
-                  <div className="p-4 rounded-lg bg-secondary/50">
-                    <p className="text-xs text-muted-foreground mb-1">Últimos 30 días</p>
-                    <p className="text-xl font-bold text-foreground">{loadingMetrics ? '—' : `${(metrics?.thirty.liters ?? 0).toFixed(2)} L`}</p>
-                    <p className="text-xs text-muted-foreground">{loadingMetrics ? '' : `${metrics?.thirty.runs ?? 0} riegos`}</p>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Última Activación</p>
+                    <p className="text-lg font-semibold text-foreground">{valve.lastActive}</p>
                   </div>
                 </div>
+              </GlassCard>
 
-                <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Droplets className="w-5 h-5 text-primary" />
-                      <span className="text-sm font-medium text-foreground">Último Riego</span>
+              {/* Water Usage Statistics */}
+              <GlassCard className="p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Droplets className="w-5 h-5 text-cyan-500" />
+                  <h3 className="text-lg font-semibold">Consumo de Agua</h3>
+                </div>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 rounded-lg bg-white/5 border border-white/5">
+                      <p className="text-xs text-muted-foreground mb-1">Últimos 7 días</p>
+                      <p className="text-xl font-bold text-foreground">{loadingMetrics ? '—' : `${(metrics?.seven.liters ?? 0).toFixed(2)} L`}</p>
+                      <p className="text-xs text-muted-foreground">{loadingMetrics ? '' : `${metrics?.seven.runs ?? 0} riegos`}</p>
                     </div>
-                    <span className="text-2xl font-bold text-primary">
-                      {loadingMetrics ? '—' : `${(metrics?.lastRun?.liters ?? 0).toFixed(2)} L`}
-                    </span>
+                    <div className="p-4 rounded-lg bg-white/5 border border-white/5">
+                      <p className="text-xs text-muted-foreground mb-1">Últimos 30 días</p>
+                      <p className="text-xl font-bold text-foreground">{loadingMetrics ? '—' : `${(metrics?.thirty.liters ?? 0).toFixed(2)} L`}</p>
+                      <p className="text-xs text-muted-foreground">{loadingMetrics ? '' : `${metrics?.thirty.runs ?? 0} riegos`}</p>
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Realizado: {loadingMetrics ? '—' : (metrics?.lastRun?.ts ? new Date(metrics.lastRun.ts).toLocaleString() : '—')}
-                  </p>
+
+                  <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Droplets className="w-5 h-5 text-primary" />
+                        <span className="text-sm font-medium text-foreground">Último Riego</span>
+                      </div>
+                      <span className="text-2xl font-bold text-primary">
+                        {loadingMetrics ? '—' : `${(metrics?.lastRun?.liters ?? 0).toFixed(2)} L`}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Realizado: {loadingMetrics ? '—' : (metrics?.lastRun?.ts ? new Date(metrics.lastRun.ts).toLocaleString() : '—')}
+                    </p>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
+              </GlassCard>
 
-            {/* Schedule Information */}
-            <Card className="gradient-border">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
+              {/* Schedule Information */}
+              <GlassCard className="p-5">
+                <div className="flex items-center gap-2 mb-4">
                   <Clock className="w-5 h-5 text-primary" />
-                  Horarios Programados
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {valve.scheduledTimes.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {valve.scheduledTimes.map((time, index) => (
-                      <Badge key={index} variant="outline" className="text-sm px-3 py-1">
-                        {time}
-                      </Badge>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No hay horarios programados</p>
-                )}
-              </CardContent>
-            </Card>
+                  <h3 className="text-lg font-semibold">Horarios Programados</h3>
+                </div>
+                <div>
+                  {valve.scheduledTimes.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {valve.scheduledTimes.map((time, index) => (
+                        <Badge key={index} variant="outline" className="text-sm px-3 py-1 bg-white/5 border-white/10">
+                          {time}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No hay horarios programados</p>
+                  )}
+                </div>
+              </GlassCard>
 
-            {/* Flow Rate History */}
-            <Card className="gradient-border">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
+              {/* Flow Rate History */}
+              <GlassCard className="p-5">
+                <div className="flex items-center gap-2 mb-4">
                   <TrendingUp className="w-5 h-5 text-primary" />
-                  Caudal Promedio
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Caudal promedio histórico</span>
-                    <span className="text-lg font-semibold text-foreground">
-                      {loadingMetrics
-                        ? '—'
-                        : ((metrics?.thirty?.durationMs ?? 0) > 0
-                          ? (metrics!.thirty.liters / ((metrics!.thirty.durationMs) / 60000)).toFixed(1) + ' L/min'
-                          : '—')}
-                    </span>
-                  </div>
-                  <div className="w-full bg-secondary rounded-full h-2">
-                    {(() => {
-                      const avg = (metrics?.thirty?.durationMs ?? 0) > 0
-                        ? (metrics!.thirty.liters / (metrics!.thirty.durationMs / 60000))
-                        : 0
-                      // Compare average vs live flow when available (fallback keeps bar subtle if no data)
-                      const live = typeof (editedValve as any)?.flowLph === 'number' ? ((editedValve as any).flowLph / 60) : 0
-                      const denom = Math.max(avg, live, 0.01)
-                      const pct = Math.max(0, Math.min(100, Math.round((avg / denom) * 100)))
-                      return <div className="bg-primary h-2 rounded-full" style={{ width: `${pct}%` }} />
-                    })()}
-                  </div>
+                  <h3 className="text-lg font-semibold">Caudal Promedio</h3>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Configuration Tab */}
-          <TabsContent value="config" className="space-y-4 mt-6">
-            <Card className="gradient-border">
-              <CardHeader>
-                <CardTitle className="text-lg">Configuración General</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 relative z-10">
-                <div className="space-y-2">
-                  <Label htmlFor="valve-name">Nombre de la Válvula</Label>
-                  <Input
-                    id="valve-name"
-                    value={editedValve.name}
-                    onChange={(e) => setEditedValve({ ...editedValve, name: e.target.value })}
-                    className="relative z-10"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="valve-zone">Zona</Label>
-                  <Input
-                    id="valve-zone"
-                    value={editedValve.zone}
-                    onChange={(e) => setEditedValve({ ...editedValve, zone: e.target.value })}
-                    className="relative z-10"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="valve-enabled">Habilitación</Label>
-                  <Select
-                    value={enabled ? 'on' : 'off'}
-                    onValueChange={(value: 'on' | 'off') => setEnabled(value === 'on')}
-                  >
-                    <SelectTrigger id="valve-enabled" className="relative z-10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="z-100">
-                      <SelectItem value="on">Habilitada</SelectItem>
-                      <SelectItem value="off">Deshabilitada</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="gradient-border">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-primary" />
-                  Programación de Riego
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6 relative z-10">
-                <div className="flex flex-col md:flex-row md:items-end gap-3">
-                  <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div className="space-y-2">
-                      <Label>Cargar perfil de riego</Label>
-                      <Select disabled={loadingProfiles || profiles.length === 0} onValueChange={(v: any) => v && handleApplyProfile(v)}>
-                        <SelectTrigger className="relative z-10">
-                          <SelectValue placeholder={loadingProfiles ? 'Cargando…' : (profiles.length ? 'Elegir perfil' : 'Sin perfiles')} />
-                        </SelectTrigger>
-                        <SelectContent className="z-100 max-h-64 overflow-auto">
-                          {profiles.map((p) => (
-                            <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                <div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Caudal promedio histórico</span>
+                      <span className="text-lg font-semibold text-foreground">
+                        {loadingMetrics
+                          ? '—'
+                          : ((metrics?.thirty?.durationMs ?? 0) > 0
+                            ? (metrics!.thirty.liters / ((metrics!.thirty.durationMs) / 60000)).toFixed(1) + ' L/min'
+                            : '—')}
+                      </span>
                     </div>
-                    {(hasValveJobs && (!appliedProfileName || scheduleModifiedFromProfile)) && (
-                      <div className="space-y-2">
-                        <Label>Guardar perfil de riego</Label>
-                        <div className="flex gap-2">
-                          <Input placeholder="Nombre" value={profileName} onChange={(e) => setProfileName(e.target.value)} />
-                          <Button type="button" variant="outline" onClick={handleSaveProfile} className="bg-transparent">Guardar</Button>
-                        </div>
-                      </div>
-                    )}
-                    <div className="space-y-2">
-                      <Label>Borrar rutina</Label>
-                      <Button type="button" variant="destructive" onClick={handleClearSchedule}>Borrar</Button>
+                    <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+                      {(() => {
+                        const avg = (metrics?.thirty?.durationMs ?? 0) > 0
+                          ? (metrics!.thirty.liters / (metrics!.thirty.durationMs / 60000))
+                          : 0
+                        // Compare average vs live flow when available (fallback keeps bar subtle if no data)
+                        const live = typeof (editedValve as any)?.flowLph === 'number' ? ((editedValve as any).flowLph / 60) : 0
+                        const denom = Math.max(avg, live, 0.01)
+                        const pct = Math.max(0, Math.min(100, Math.round((avg / denom) * 100)))
+                        return <div className="bg-primary h-2 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+                      })()}
                     </div>
                   </div>
                 </div>
+              </GlassCard>
+            </TabsContent>
 
-                {!hasValveJobs && (
-                  <div className="p-4 rounded-lg bg-secondary/30 border border-border text-sm text-muted-foreground flex items-center justify-between">
-                    <span>No hay una programación guardada para esta válvula.</span>
-                    <Button type="button" variant="outline" className="bg-transparent" onClick={() => setHasValveJobs(true)}>
-                      <Plus className="w-4 h-4 mr-2" /> Agregar programación
-                    </Button>
-                  </div>
-                )}
-
-                {hasValveJobs && (
-                  <>
-                    <ConfirmDialog
-                      open={confirmClearOpen}
-                      destructive
-                      loading={confirmBusy}
-                      title="Borrar rutina de riego"
-                      description={(
-                        <>
-                          <p>Esta acción eliminará TODAS las ejecuciones futuras para esta válvula.</p>
-                          <p className="font-medium text-foreground">No se volverán a generar hasta que configures una nueva programación.</p>
-                          <p className="text-red-500">Acción irreversible.</p>
-                        </>
-                      )}
-                      confirmLabel="Borrar"
-                      cancelLabel="Cancelar"
-                      onConfirm={doClearSchedule}
-                      onCancel={() => setConfirmClearOpen(false)}
+            {/* Configuration Tab */}
+            <TabsContent value="config" className="space-y-4 mt-6">
+              <GlassCard className="p-5">
+                <h3 className="text-lg font-semibold mb-4">Configuración General</h3>
+                <div className="space-y-4 relative z-10">
+                  <div className="space-y-2">
+                    <Label htmlFor="valve-name">Nombre de la Válvula</Label>
+                    <Input
+                      id="valve-name"
+                      value={editedValve.name}
+                      onChange={(e) => setEditedValve({ ...editedValve, name: e.target.value })}
+                      className="bg-black/20 border-white/10"
                     />
-                    {/* Water Amount Configuration - Moved inside schedule block */}
-                    <div className="p-4 rounded-lg bg-secondary/30 border border-border">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Waves className="w-5 h-5 text-cyan-500" />
-                        <span className="text-sm font-semibold text-foreground">Cantidad de Agua por Riego</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="valve-zone">Zona</Label>
+                    <Input
+                      id="valve-zone"
+                      value={editedValve.zone}
+                      onChange={(e) => setEditedValve({ ...editedValve, zone: e.target.value })}
+                      className="bg-black/20 border-white/10"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="valve-enabled">Habilitación</Label>
+                    <Select
+                      value={enabled ? 'on' : 'off'}
+                      onValueChange={(value: 'on' | 'off') => setEnabled(value === 'on')}
+                    >
+                      <SelectTrigger id="valve-enabled" className="bg-black/20 border-white/10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="z-100">
+                        <SelectItem value="on">Habilitada</SelectItem>
+                        <SelectItem value="off">Deshabilitada</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </GlassCard>
+
+              <GlassCard className="p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Clock className="w-5 h-5 text-primary" />
+                  <h3 className="text-lg font-semibold">Programación de Riego</h3>
+                </div>
+                <div className="space-y-6 relative z-10">
+                  <div className="flex flex-col md:flex-row md:items-end gap-3">
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="space-y-2">
+                        <Label>Cargar perfil de riego</Label>
+                        <Select disabled={loadingProfiles || profiles.length === 0} onValueChange={(v: any) => v && handleApplyProfile(v)}>
+                          <SelectTrigger className="bg-black/20 border-white/10">
+                            <SelectValue placeholder={loadingProfiles ? 'Cargando…' : (profiles.length ? 'Elegir perfil' : 'Sin perfiles')} />
+                          </SelectTrigger>
+                          <SelectContent className="z-100 max-h-64 overflow-auto">
+                            {profiles.map((p) => (
+                              <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                      <div className="space-y-4">
+                      {(hasValveJobs && (!appliedProfileName || scheduleModifiedFromProfile)) && (
                         <div className="space-y-2">
-                          <Label>Unidad de Medida</Label>
-                          <Select
-                            value={editedValve.waterUnit}
-                            onValueChange={(value: "L" | "ml") => setEditedValve({ ...editedValve, waterUnit: value })}
-                          >
-                            <SelectTrigger className="relative z-10">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="z-100">
-                              <SelectItem value="L">Litros (L)</SelectItem>
-                              <SelectItem value="ml">Mililitros (ml)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <Label>
-                              Cantidad: {editedValve.waterAmount} {editedValve.waterUnit}
-                            </Label>
-                          </div>
-                          <Slider
-                            value={[editedValve.waterAmount]}
-                            onValueChange={([value]) => setEditedValve({ ...editedValve, waterAmount: value })}
-                            min={editedValve.waterUnit === "L" ? 1 : 100}
-                            max={editedValve.waterUnit === "L" ? 200 : 5000}
-                            step={editedValve.waterUnit === "L" ? 1 : 50}
-                            className="w-full relative z-10"
-                          />
-                          <div className="flex justify-between text-xs text-muted-foreground">
-                            <span>{editedValve.waterUnit === "L" ? "1 L" : "100 ml"}</span>
-                            <span>{editedValve.waterUnit === "L" ? "200 L" : "5000 ml"}</span>
+                          <Label>Guardar perfil de riego</Label>
+                          <div className="flex gap-2">
+                            <Input placeholder="Nombre" value={profileName} onChange={(e) => setProfileName(e.target.value)} className="bg-black/20 border-white/10" />
+                            <Button type="button" variant="outline" onClick={handleSaveProfile} className="bg-transparent border-white/10 hover:bg-white/5">Guardar</Button>
                           </div>
                         </div>
+                      )}
+                      <div className="space-y-2">
+                        <Label>Borrar rutina</Label>
+                        <Button type="button" variant="destructive" onClick={handleClearSchedule} className="w-full">Borrar</Button>
                       </div>
                     </div>
+                  </div>
 
-                    {/* Schedule Mode Selection */}
-                    <div className="space-y-2">
-                      <Label>Modo de Programación</Label>
-                      <Select value={scheduleMode} onValueChange={(value: any) => setScheduleMode(value)}>
-                        <SelectTrigger className="relative z-10">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="z-100">
-                          <SelectItem value="daily">Diario</SelectItem>
-                          <SelectItem value="weekly">Semanal (Días Específicos)</SelectItem>
-                          <SelectItem value="interval">Por Intervalo</SelectItem>
-                          <SelectItem value="custom">Personalizado</SelectItem>
-                        </SelectContent>
-                      </Select>
+                  {!hasValveJobs && (
+                    <div className="p-4 rounded-lg bg-white/5 border border-dashed border-white/10 text-sm text-muted-foreground flex items-center justify-between">
+                      <span>No hay una programación guardada para esta válvula.</span>
+                      <Button type="button" variant="outline" className="bg-transparent border-white/10 hover:bg-white/5" onClick={() => setHasValveJobs(true)}>
+                        <Plus className="w-4 h-4 mr-2" /> Agregar programación
+                      </Button>
                     </div>
+                  )}
 
-                    {/* Daily Mode */}
-                    {scheduleMode === "daily" && (
-                      <div className="space-y-4 p-4 rounded-lg bg-secondary/30">
-                        <p className="text-sm text-muted-foreground">Riego todos los días a las horas especificadas</p>
-                        <div className="space-y-3">
-                          {scheduleTimes.map((time, index) => (
-                            <div key={index} className="flex items-center gap-2">
-                              <Input
-                                type="time"
-                                value={time}
-                                onChange={(e) => updateScheduleTime(index, e.target.value)}
-                                className="relative z-10"
-                              />
-                              {scheduleTimes.length > 1 && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => removeScheduleTime(index)}
-                                  className="relative z-10"
-                                >
-                                  <X className="w-4 h-4" />
-                                </Button>
-                              )}
+                  {hasValveJobs && (
+                    <>
+                      <ConfirmDialog
+                        open={confirmClearOpen}
+                        destructive
+                        loading={confirmBusy}
+                        title="Borrar rutina de riego"
+                        description={(
+                          <>
+                            <p>Esta acción eliminará TODAS las ejecuciones futuras para esta válvula.</p>
+                            <p className="font-medium text-foreground">No se volverán a generar hasta que configures una nueva programación.</p>
+                            <p className="text-red-500">Acción irreversible.</p>
+                          </>
+                        )}
+                        confirmLabel="Borrar"
+                        cancelLabel="Cancelar"
+                        onConfirm={doClearSchedule}
+                        onCancel={() => setConfirmClearOpen(false)}
+                      />
+                      {/* Water Amount Configuration - Moved inside schedule block */}
+                      <div className="p-4 rounded-lg bg-white/5 border border-white/10">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Waves className="w-5 h-5 text-cyan-500" />
+                          <span className="text-sm font-semibold text-foreground">Cantidad de Agua por Riego</span>
+                        </div>
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label>Unidad de Medida</Label>
+                            <Select
+                              value={editedValve.waterUnit}
+                              onValueChange={(value: "L" | "ml") => setEditedValve({ ...editedValve, waterUnit: value })}
+                            >
+                              <SelectTrigger className="bg-black/20 border-white/10">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="z-100">
+                                <SelectItem value="L">Litros (L)</SelectItem>
+                                <SelectItem value="ml">Mililitros (ml)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <Label>
+                                Cantidad: {editedValve.waterAmount} {editedValve.waterUnit}
+                              </Label>
                             </div>
-                          ))}
-                          {scheduleTimes.length < 6 && (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={addScheduleTime}
-                              className="w-full relative z-10 bg-transparent"
-                            >
-                              <Plus className="w-4 h-4 mr-2" />
-                              Agregar Horario
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Weekly Mode */}
-                    {scheduleMode === "weekly" && (
-                      <div className="space-y-4 p-4 rounded-lg bg-secondary/30">
-                        <p className="text-sm text-muted-foreground">Selecciona los días de la semana</p>
-                        <div className="grid grid-cols-7 gap-2">
-                          {dayNames.map((day, index) => (
-                            <Button
-                              key={index}
-                              type="button"
-                              variant={selectedDays.includes(index) ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => toggleDay(index)}
-                              className="relative z-10 p-2 h-auto"
-                            >
-                              {day}
-                            </Button>
-                          ))}
-                        </div>
-                        <div className="space-y-2 mt-4">
-                          <Label htmlFor="weekly-time">Hora de Riego</Label>
-                          <Input
-                            id="weekly-time"
-                            type="time"
-                            value={scheduleTime}
-                            onChange={(e) => setScheduleTime(e.target.value)}
-                            className="relative z-10"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Interval Mode */}
-                    {scheduleMode === "interval" && (
-                      <div className="space-y-4 p-4 rounded-lg bg-secondary/30">
-                        <p className="text-sm text-muted-foreground">Riego cada cierto intervalo de tiempo</p>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="interval-days">Días</Label>
-                            <Input
-                              id="interval-days"
-                              type="number"
-                              min="0"
-                              max="30"
-                              value={intervalDays}
-                              onChange={(e) => setIntervalDays(Number(e.target.value))}
-                              className="relative z-10"
+                            <Slider
+                              value={[editedValve.waterAmount]}
+                              onValueChange={([value]) => setEditedValve({ ...editedValve, waterAmount: value })}
+                              min={editedValve.waterUnit === "L" ? 1 : 100}
+                              max={editedValve.waterUnit === "L" ? 200 : 5000}
+                              step={editedValve.waterUnit === "L" ? 1 : 50}
+                              className="w-full relative z-10"
                             />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="interval-hours">Horas</Label>
-                            <Input
-                              id="interval-hours"
-                              type="number"
-                              min="0"
-                              max="23"
-                              value={intervalHours}
-                              onChange={(e) => setIntervalHours(Number(e.target.value))}
-                              className="relative z-10"
-                            />
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                              <span>{editedValve.waterUnit === "L" ? "1 L" : "100 ml"}</span>
+                              <span>{editedValve.waterUnit === "L" ? "200 L" : "5000 ml"}</span>
+                            </div>
                           </div>
                         </div>
-                        <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
-                          <p className="text-sm font-medium text-foreground">
-                            Frecuencia: Cada {intervalDays > 0 && `${intervalDays} día${intervalDays > 1 ? "s" : ""}`}
-                            {intervalDays > 0 && intervalHours > 0 && " y "}
-                            {intervalHours > 0 && `${intervalHours} hora${intervalHours > 1 ? "s" : ""}`}
-                          </p>
+                      </div>
+
+                      {/* Schedule Mode Selection */}
+                      <div className="space-y-2">
+                        <Label>Modo de Programación</Label>
+                        <Select value={scheduleMode} onValueChange={(value: any) => setScheduleMode(value)}>
+                          <SelectTrigger className="bg-black/20 border-white/10">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="z-100">
+                            <SelectItem value="daily">Diario</SelectItem>
+                            <SelectItem value="weekly">Semanal (Días Específicos)</SelectItem>
+                            <SelectItem value="interval">Por Intervalo</SelectItem>
+                            <SelectItem value="custom">Personalizado</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Daily Mode */}
+                      {scheduleMode === "daily" && (
+                        <div className="space-y-4 p-4 rounded-lg bg-white/5 border border-white/10">
+                          <p className="text-sm text-muted-foreground">Riego todos los días a las horas especificadas</p>
+                          <div className="space-y-3">
+                            {scheduleTimes.map((time, index) => (
+                              <div key={index} className="flex items-center gap-2">
+                                <Input
+                                  type="time"
+                                  value={time}
+                                  onChange={(e) => updateScheduleTime(index, e.target.value)}
+                                  className="bg-black/20 border-white/10"
+                                />
+                                {scheduleTimes.length > 1 && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => removeScheduleTime(index)}
+                                    className="hover:bg-white/10"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            ))}
+                            {scheduleTimes.length < 6 && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={addScheduleTime}
+                                className="w-full bg-transparent border-white/10 hover:bg-white/5"
+                              >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Agregar Horario
+                              </Button>
+                            )}
+                          </div>
                         </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="interval-start-time">Hora de Inicio</Label>
-                          <Input
-                            id="interval-start-time"
-                            type="time"
-                            value={scheduleTime}
-                            onChange={(e) => setScheduleTime(e.target.value)}
-                            className="relative z-10"
-                          />
+                      )}
+
+                      {/* Weekly Mode */}
+                      {scheduleMode === "weekly" && (
+                        <div className="space-y-4 p-4 rounded-lg bg-white/5 border border-white/10">
+                          <p className="text-sm text-muted-foreground">Selecciona los días de la semana</p>
+                          <div className="grid grid-cols-7 gap-2">
+                            {dayNames.map((day, index) => (
+                              <Button
+                                key={index}
+                                type="button"
+                                variant={selectedDays.includes(index) ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => toggleDay(index)}
+                                className={cn(
+                                  "p-2 h-auto",
+                                  selectedDays.includes(index) ? "bg-primary text-primary-foreground" : "bg-transparent border-white/10 hover:bg-white/5"
+                                )}
+                              >
+                                {day}
+                              </Button>
+                            ))}
+                          </div>
+                          <div className="space-y-2 mt-4">
+                            <Label htmlFor="weekly-time">Hora de Riego</Label>
+                            <Input
+                              id="weekly-time"
+                              type="time"
+                              value={scheduleTime}
+                              onChange={(e) => setScheduleTime(e.target.value)}
+                              className="bg-black/20 border-white/10"
+                            />
+                          </div>
                         </div>
-                        
-                        {/* Consecutive waterings configuration */}
-                        <div className="p-3 rounded-lg bg-secondary/50 border border-border space-y-3">
-                          <p className="text-sm font-medium text-foreground">Riegos Consecutivos (opcional)</p>
-                          <p className="text-xs text-muted-foreground">
-                            Configura múltiples riegos seguidos cada vez que se cumple el intervalo
-                          </p>
+                      )}
+
+                      {/* Interval Mode */}
+                      {scheduleMode === "interval" && (
+                        <div className="space-y-4 p-4 rounded-lg bg-white/5 border border-white/10">
+                          <p className="text-sm text-muted-foreground">Riego cada cierto intervalo de tiempo</p>
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                              <Label htmlFor="consecutive-waterings">Cantidad de Riegos</Label>
+                              <Label htmlFor="interval-days">Días</Label>
                               <Input
-                                id="consecutive-waterings"
+                                id="interval-days"
                                 type="number"
-                                min="1"
-                                max="10"
-                                value={consecutiveWaterings}
-                                onChange={(e) => setConsecutiveWaterings(Number(e.target.value))}
-                                className="relative z-10"
+                                min="0"
+                                max="30"
+                                value={intervalDays}
+                                onChange={(e) => setIntervalDays(Number(e.target.value))}
+                                className="bg-black/20 border-white/10"
                               />
                             </div>
                             <div className="space-y-2">
-                              <Label htmlFor="watering-interval">Intervalo (minutos)</Label>
+                              <Label htmlFor="interval-hours">Horas</Label>
                               <Input
-                                id="watering-interval"
+                                id="interval-hours"
                                 type="number"
-                                min="1"
-                                max="60"
-                                value={wateringIntervalMinutes}
-                                onChange={(e) => setWateringIntervalMinutes(Number(e.target.value))}
-                                className="relative z-10"
-                                disabled={consecutiveWaterings <= 1}
+                                min="0"
+                                max="23"
+                                value={intervalHours}
+                                onChange={(e) => setIntervalHours(Number(e.target.value))}
+                                className="bg-black/20 border-white/10"
                               />
                             </div>
                           </div>
-                          {consecutiveWaterings > 1 && (
-                            <div className="p-2 rounded bg-primary/10 text-xs text-foreground">
-                              Se realizarán <strong>{consecutiveWaterings} riegos</strong> separados por{" "}
-                              <strong>{wateringIntervalMinutes} minutos</strong> cada vez que se cumpla el intervalo de{" "}
-                              {intervalDays > 0 && `${intervalDays} día${intervalDays > 1 ? "s" : ""}`}
+                          <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+                            <p className="text-sm font-medium text-foreground">
+                              Frecuencia: Cada {intervalDays > 0 && `${intervalDays} día${intervalDays > 1 ? "s" : ""}`}
                               {intervalDays > 0 && intervalHours > 0 && " y "}
                               {intervalHours > 0 && `${intervalHours} hora${intervalHours > 1 ? "s" : ""}`}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Custom Mode */}
-                    {scheduleMode === "custom" && (
-                      <div className="space-y-4 p-4 rounded-lg bg-secondary/30">
-                        <p className="text-sm text-muted-foreground">
-                          Configuración avanzada: combina días específicos con múltiples horarios
-                        </p>
-                        <div className="space-y-4">
-                          <div>
-                            <Label className="mb-2 block">Días de la Semana</Label>
-                            <div className="grid grid-cols-7 gap-2">
-                              {dayNames.map((day, index) => (
-                                <Button
-                                  key={index}
-                                  type="button"
-                                  variant={selectedDays.includes(index) ? "default" : "outline"}
-                                  size="sm"
-                                  onClick={() => toggleDay(index)}
-                                  className="relative z-10 p-2 h-auto"
-                                >
-                                  {day}
-                                </Button>
-                              ))}
-                            </div>
+                            </p>
                           </div>
-                          <div>
-                            <Label className="mb-2 block">Horarios</Label>
-                            <div className="space-y-3">
-                              {scheduleTimes.map((time, index) => (
-                                <div key={index} className="flex items-center gap-2">
-                                  <Input
-                                    type="time"
-                                    value={time}
-                                    onChange={(e) => updateScheduleTime(index, e.target.value)}
-                                    className="relative z-10"
-                                  />
-                                  {scheduleTimes.length > 1 && (
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => removeScheduleTime(index)}
-                                      className="relative z-10"
-                                    >
-                                      <X className="w-4 h-4" />
-                                    </Button>
-                                  )}
-                                </div>
-                              ))}
-                              {scheduleTimes.length < 6 && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  onClick={addScheduleTime}
-                                  className="w-full relative z-10 bg-transparent"
-                                >
-                                  <Plus className="w-4 h-4 mr-2" />
-                                  Agregar Horario
-                                </Button>
-                              )}
+                          <div className="space-y-2">
+                            <Label htmlFor="interval-start-time">Hora de Inicio</Label>
+                            <Input
+                              id="interval-start-time"
+                              type="time"
+                              value={scheduleTime}
+                              onChange={(e) => setScheduleTime(e.target.value)}
+                              className="bg-black/20 border-white/10"
+                            />
+                          </div>
+                          
+                          {/* Consecutive waterings configuration */}
+                          <div className="p-3 rounded-lg bg-white/5 border border-white/10 space-y-3">
+                            <p className="text-sm font-medium text-foreground">Riegos Consecutivos (opcional)</p>
+                            <p className="text-xs text-muted-foreground">
+                              Configura múltiples riegos seguidos cada vez que se cumple el intervalo
+                            </p>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="consecutive-waterings">Cantidad de Riegos</Label>
+                                <Input
+                                  id="consecutive-waterings"
+                                  type="number"
+                                  min="1"
+                                  max="10"
+                                  value={consecutiveWaterings}
+                                  onChange={(e) => setConsecutiveWaterings(Number(e.target.value))}
+                                  className="bg-black/20 border-white/10"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="watering-interval">Intervalo (minutos)</Label>
+                                <Input
+                                  id="watering-interval"
+                                  type="number"
+                                  min="1"
+                                  max="60"
+                                  value={wateringIntervalMinutes}
+                                  onChange={(e) => setWateringIntervalMinutes(Number(e.target.value))}
+                                  className="bg-black/20 border-white/10"
+                                  disabled={consecutiveWaterings <= 1}
+                                />
+                              </div>
                             </div>
+                            {consecutiveWaterings > 1 && (
+                              <div className="p-2 rounded bg-primary/10 text-xs text-foreground">
+                                Se realizarán <strong>{consecutiveWaterings} riegos</strong> separados por{" "}
+                                <strong>{wateringIntervalMinutes} minutos</strong> cada vez que se cumpla el intervalo de{" "}
+                                {intervalDays > 0 && `${intervalDays} día${intervalDays > 1 ? "s" : ""}`}
+                                {intervalDays > 0 && intervalHours > 0 && " y "}
+                                {intervalHours > 0 && `${intervalHours} hora${intervalHours > 1 ? "s" : ""}`}
+                              </div>
+                            )}
                           </div>
                         </div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </CardContent>
-            </Card>
+                      )}
 
-            {/* Test Button */}
-            <Card className="gradient-border">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
+                      {/* Custom Mode */}
+                      {scheduleMode === "custom" && (
+                        <div className="space-y-4 p-4 rounded-lg bg-white/5 border border-white/10">
+                          <p className="text-sm text-muted-foreground">
+                            Configuración avanzada: combina días específicos con múltiples horarios
+                          </p>
+                          <div className="space-y-4">
+                            <div>
+                              <Label className="mb-2 block">Días de la Semana</Label>
+                              <div className="grid grid-cols-7 gap-2">
+                                {dayNames.map((day, index) => (
+                                  <Button
+                                    key={index}
+                                    type="button"
+                                    variant={selectedDays.includes(index) ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => toggleDay(index)}
+                                    className={cn(
+                                      "p-2 h-auto",
+                                      selectedDays.includes(index) ? "bg-primary text-primary-foreground" : "bg-transparent border-white/10 hover:bg-white/5"
+                                    )}
+                                  >
+                                    {day}
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+                            <div>
+                              <Label className="mb-2 block">Horarios</Label>
+                              <div className="space-y-3">
+                                {scheduleTimes.map((time, index) => (
+                                  <div key={index} className="flex items-center gap-2">
+                                    <Input
+                                      type="time"
+                                      value={time}
+                                      onChange={(e) => updateScheduleTime(index, e.target.value)}
+                                      className="bg-black/20 border-white/10"
+                                    />
+                                    {scheduleTimes.length > 1 && (
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => removeScheduleTime(index)}
+                                        className="hover:bg-white/10"
+                                      >
+                                        <X className="w-4 h-4" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                ))}
+                                {scheduleTimes.length < 6 && (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={addScheduleTime}
+                                    className="w-full bg-transparent border-white/10 hover:bg-white/5"
+                                  >
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    Agregar Horario
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </GlassCard>
+
+              {/* Test Button */}
+              <GlassCard className="p-5">
+                <div className="flex items-center gap-2 mb-4">
                   <TestTube className="w-5 h-5 text-primary" />
-                  Prueba de Válvula
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="relative z-10">
-                <Button
-                  type="button"
-                  onClick={handleTest}
-                  disabled={isTesting || enabled === false}
-                  className="w-full bg-transparent relative z-10"
-                  variant="outline"
-                >
-                  {isTesting ? "Probando..." : "Probar Válvula"}
-                </Button>
-                {isTesting && (
-                  <p className="text-sm text-muted-foreground mt-2 text-center">
-                    La válvula se activará por 3 segundos
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+                  <h3 className="text-lg font-semibold">Prueba de Válvula</h3>
+                </div>
+                <div className="relative z-10">
+                  <Button
+                    type="button"
+                    onClick={handleTest}
+                    disabled={isTesting || enabled === false}
+                    className="w-full bg-transparent border border-white/10 hover:bg-white/5 relative z-10"
+                    variant="outline"
+                  >
+                    {isTesting ? "Probando..." : "Probar Válvula"}
+                  </Button>
+                  {isTesting && (
+                    <p className="text-sm text-muted-foreground mt-2 text-center">
+                      La válvula se activará por 3 segundos
+                    </p>
+                  )}
+                </div>
+              </GlassCard>
 
-            {/* Save feedback */}
-            {(saveOk || saveErr) && (
-              <div className={`mt-1 text-sm rounded border px-3 py-2 ${saveOk ? 'text-emerald-300 bg-emerald-900/20 border-emerald-800' : 'text-red-300 bg-red-900/20 border-red-800'}`}>
-                {saveOk || saveErr}
-              </div>
-            )}
+              {/* Save feedback */}
+              {(saveOk || saveErr) && (
+                <div className={`mt-1 text-sm rounded border px-3 py-2 ${saveOk ? 'text-emerald-300 bg-emerald-900/20 border-emerald-800' : 'text-red-300 bg-red-900/20 border-red-800'}`}>
+                  {saveOk || saveErr}
+                </div>
+              )}
 
-            {/* Save Button */}
-            <Button type="button" onClick={handleSave} className="w-full gradient-primary relative z-10" size="lg" disabled={saving || !isDirty}>
-              <Save className="w-4 h-4 mr-2" />
-              {saving ? 'Guardando…' : (isDirty ? 'Guardar Cambios' : 'Sin cambios')}
-            </Button>
-          </TabsContent>
-        </Tabs>
+              {/* Save Button */}
+              <Button type="button" onClick={handleSave} className="w-full gradient-primary relative z-10 shadow-lg shadow-primary/20" size="lg" disabled={saving || !isDirty}>
+                <Save className="w-4 h-4 mr-2" />
+                {saving ? 'Guardando…' : (isDirty ? 'Guardar Cambios' : 'Sin cambios')}
+              </Button>
+            </TabsContent>
+          </Tabs>
+        </div>
       </SheetContent>
     </Sheet>
   )

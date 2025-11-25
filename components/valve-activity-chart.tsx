@@ -1,7 +1,7 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Legend } from "recharts"
+import { GlassCard } from "@/components/ui/glass-card"
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { useEffect, useMemo, useState } from "react"
 import { Clock } from "lucide-react"
@@ -12,7 +12,7 @@ type HistItem = { ts?: number; payload?: any }
 const chartConfig = {
   minutes: {
     label: "Minutos",
-    color: "hsl(var(--accent))",
+    color: "hsl(var(--primary))",
   },
 }
 
@@ -50,11 +50,8 @@ export function ValveActivityChart() {
     for (const it of items) {
       const v = Number(it?.payload?.valve)
       const durMs = Number(it?.payload?.durationMs)
-      const liters = Number(it?.payload?.deliveredLiters ?? it?.payload?.liters ?? 0)
       if (!Number.isFinite(v) || !Number.isFinite(durMs)) continue
-      // Only check if there's duration, not necessarily liters
-      if (!(durMs > 0)) continue
-      // Only include selected valves
+      if (durMs <= 0) continue
       if (!selectedValves.includes(v)) continue
       totals.set(v, (totals.get(v) || 0) + durMs)
     }
@@ -68,14 +65,14 @@ export function ValveActivityChart() {
   }, [items, selectedValves])
 
   return (
-    <Card className="gradient-border">
-      <CardHeader className="p-4 sm:p-5 md:p-6">
-        <CardTitle className="text-lg sm:text-xl text-foreground">Actividad por Válvula</CardTitle>
-        <CardDescription className="mt-1">Tiempo activo total por válvula</CardDescription>
-      </CardHeader>
-      <CardContent className="p-4 sm:p-5 md:p-6 pt-0">
+    <GlassCard className="flex flex-col h-full">
+      <div className="p-6 pb-2">
+        <h3 className="text-lg font-medium text-foreground">Actividad por Válvula</h3>
+        <p className="text-sm text-muted-foreground">Tiempo activo total por válvula</p>
+      </div>
+      <div className="p-6 pt-0 flex-1">
         {error && (
-          <div className="h-72 sm:h-80 md:h-96 w-full flex items-center justify-center">
+          <div className="h-[300px] w-full flex items-center justify-center">
             <div className="text-center space-y-2">
               <p className="text-sm text-red-400">Error al cargar datos</p>
               <p className="text-xs text-muted-foreground">{error}</p>
@@ -83,12 +80,12 @@ export function ValveActivityChart() {
           </div>
         )}
         {!error && loading && (
-          <div className="h-72 sm:h-80 md:h-96 w-full flex items-center justify-center text-sm text-muted-foreground">
+          <div className="h-[300px] w-full flex items-center justify-center text-sm text-muted-foreground">
             Cargando actividad de válvulas...
           </div>
         )}
         {!error && !loading && chartData.length === 0 && (
-          <div className="h-72 sm:h-80 md:h-96 w-full flex items-center justify-center">
+          <div className="h-[300px] w-full flex items-center justify-center">
             <div className="text-center space-y-2">
               <Clock className="w-12 h-12 mx-auto text-muted-foreground/50" />
               <p className="text-sm text-muted-foreground">No hay datos de actividad disponibles</p>
@@ -96,7 +93,7 @@ export function ValveActivityChart() {
           </div>
         )}
         {!error && !loading && chartData.length > 0 && (
-          <ChartContainer config={chartConfig} className="h-72 sm:h-80 md:h-96 w-full">
+          <ChartContainer config={chartConfig} className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
@@ -114,20 +111,21 @@ export function ValveActivityChart() {
                   width={45}
                   tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
                 />
-                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartTooltip 
+                  cursor={{ fill: 'hsl(var(--muted)/0.2)' }}
+                  content={<ChartTooltipContent />} 
+                />
                 <Bar 
                   dataKey="minutes" 
-                  fill="hsl(142 76% 45%)"
-                  stroke="hsl(142 76% 35%)"
-                  strokeWidth={1.5}
-                  radius={[8, 8, 0, 0]}
-                  maxBarSize={80}
+                  fill="hsl(var(--primary))"
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={60}
                 />
               </BarChart>
             </ResponsiveContainer>
           </ChartContainer>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </GlassCard>
   )
 }

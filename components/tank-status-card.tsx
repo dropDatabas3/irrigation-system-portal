@@ -1,16 +1,19 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Droplets } from 'lucide-react'
+import { Droplets, Save, RefreshCw } from 'lucide-react'
 import { useIrrigationEvents } from '@/lib/useEvents'
+import { GlassCard } from "@/components/ui/glass-card"
+import { motion } from "framer-motion"
 
 type TankInitial = { currentLiters: number; capacityLiters: number; percent: number }
 
-export function TankStatusCard({ initial, disableInitialFetch = false }: { initial?: TankInitial | null; disableInitialFetch?: boolean }) {
+const BUBBLES = Array.from({ length: 5 }, (_, i) => i);
+
+export function TankStatusCard({ initial, disableInitialFetch = false }: Readonly<{ initial?: TankInitial | null; disableInitialFetch?: boolean }>) {
   const { lastResult } = useIrrigationEvents()
   const [current, setCurrent] = useState(() => Math.max(0, Number(initial?.currentLiters) || 0))
   const [capacity, setCapacity] = useState(() => Math.max(0, Number(initial?.capacityLiters) || 0))
@@ -70,49 +73,102 @@ export function TankStatusCard({ initial, disableInitialFetch = false }: { initi
   }
 
   return (
-    <Card className="gradient-border relative overflow-hidden">
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Droplets className="w-5 h-5 text-cyan-500" />
-          Estado del Depósito
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground">Disponible</p>
-            <p className="text-2xl font-bold text-foreground">{loading ? '—' : `${Math.round(current)} L`}</p>
-            <p className="text-xs text-muted-foreground">{loading ? '' : `${percent}% ${capacity ? `· Capacidad ${Math.round(capacity)} L` : ''}`}</p>
+    <GlassCard className="relative overflow-hidden p-6">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+          <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-500">
+            <Droplets className="w-5 h-5" />
           </div>
-          <div className="w-24 h-24 rounded-xl overflow-hidden border border-border bg-secondary/40 relative">
-            {/* Static fill height back layer */}
-            <div className="absolute inset-0 flex items-end">
-              <div className="relative w-full" style={{ height: `${percent}%` }}>
-                {/* Liquid animated layer */}
-                <div className="liquid-tank absolute bottom-0 left-0 right-0 h-full" />
-                {/* Surface shimmer */}
-                <div className="absolute top-0 left-0 right-0 h-1 bg-cyan-200/40 mix-blend-screen" />
-              </div>
+          Estado del Depósito
+        </h3>
+        {loading && <RefreshCw className="w-4 h-4 animate-spin text-muted-foreground" />}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+        {/* Visual Tank */}
+        <div className="relative h-48 w-full max-w-[200px] mx-auto rounded-2xl border-2 border-white/10 bg-black/20 backdrop-blur-sm overflow-hidden">
+          {/* Glass reflections */}
+          <div className="absolute inset-0 z-20 bg-linear-to-r from-white/5 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 z-20 shadow-[inset_0_0_20px_rgba(0,0,0,0.5)] pointer-events-none" />
+          
+          {/* Liquid */}
+          <div className="absolute bottom-0 left-0 right-0 transition-all duration-1000 ease-in-out z-10" style={{ height: `${percent}%` }}>
+            <div className="absolute inset-0 bg-cyan-500/60 backdrop-blur-md animate-pulse-glow" />
+            <div className="absolute top-0 left-0 right-0 h-2 bg-cyan-400/50 blur-sm" />
+            
+            {/* Bubbles effect */}
+            <div className="absolute inset-0 overflow-hidden">
+              {BUBBLES.map((i) => (
+                <motion.div
+                  key={i}
+                  className="absolute bottom-0 w-2 h-2 rounded-full bg-white/30"
+                  style={{ left: `${(i * 20) + 10}%` }}
+                  animate={{ y: -200, opacity: 0 }}
+                  transition={{ 
+                    duration: 2 + (i % 3), 
+                    repeat: Infinity, 
+                    delay: i * 0.5,
+                    ease: "linear"
+                  }}
+                />
+              ))}
             </div>
-            {/* Outline mask for crisp edges */}
-            <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-cyan-400/30" />
+          </div>
+
+          {/* Percentage Text Overlay */}
+          <div className="absolute inset-0 z-30 flex items-center justify-center">
+            <div className="text-center">
+              <span className="text-3xl font-bold text-white drop-shadow-lg">{Math.round(percent)}%</span>
+              <p className="text-xs text-white/80 font-medium drop-shadow-md">Lleno</p>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <Label>Volumen cargado (L)</Label>
-            <Input value={volumeInput} onChange={(e) => setVolumeInput(e.target.value)} placeholder="ej: 200" />
+        {/* Stats & Controls */}
+        <div className="space-y-6">
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground font-medium">Volumen Actual</p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-4xl font-bold text-foreground tracking-tight">{loading ? '—' : Math.round(current)}</span>
+              <span className="text-lg text-muted-foreground">Litros</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Capacidad total: {Math.round(capacity)} L
+            </p>
           </div>
-          <div className="space-y-2">
-            <Label>Capacidad (L) (opcional)</Label>
-            <Input value={capacityInput} onChange={(e) => setCapacityInput(e.target.value)} placeholder={capacity ? String(capacity) : 'ej: 200'} />
+
+          <div className="space-y-4 pt-4 border-t border-white/5">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label className="text-xs">Cargar Volumen (L)</Label>
+                <Input 
+                  value={volumeInput} 
+                  onChange={(e) => setVolumeInput(e.target.value)} 
+                  placeholder="ej: 200"
+                  className="bg-white/5 border-white/10 focus:border-cyan-500/50" 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Capacidad (L)</Label>
+                <Input 
+                  value={capacityInput} 
+                  onChange={(e) => setCapacityInput(e.target.value)} 
+                  placeholder={capacity ? String(capacity) : 'ej: 1000'}
+                  className="bg-white/5 border-white/10 focus:border-cyan-500/50" 
+                />
+              </div>
+            </div>
+            <Button 
+              onClick={handleLoad} 
+              disabled={saving} 
+              className="w-full bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-500 border border-cyan-500/50"
+            >
+              {saving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+              {saving ? 'Actualizando...' : 'Actualizar Depósito'}
+            </Button>
           </div>
         </div>
-        <Button type="button" onClick={handleLoad} disabled={saving} className="w-full bg-transparent" variant="outline">
-          {saving ? 'Guardando…' : 'Cargar Depósito'}
-        </Button>
-      </CardContent>
-    </Card>
+      </div>
+    </GlassCard>
   )
 }

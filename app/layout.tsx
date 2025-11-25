@@ -6,14 +6,20 @@ import PWARegister from "@/components/pwa-register"
 import InstallPrompt from "@/components/install-prompt"
 import "./globals.css"
 
-const _geist = Geist({ subsets: ["latin"] })
-const _geistMono = Geist_Mono({ subsets: ["latin"] })
+const geist = Geist({
+  subsets: ["latin"],
+  variable: "--font-sans",
+})
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+})
 
 export const metadata: Metadata = {
   title: "Sistema de Riego Inteligente",
   description: "Portal de configuración y monitoreo de sistema de riego",
   manifest: "/manifest.json",
-  themeColor: "#0f172a",
+  themeColor: "#020617",
   icons: {
     icon: "/placeholder-logo.png",
     apple: "/placeholder-logo.png",
@@ -31,12 +37,17 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es" className="dark">
-      <body className={`font-sans antialiased`} suppressHydrationWarning>
-        {children}
+      <body className={`${geist.variable} ${geistMono.variable} font-sans antialiased min-h-screen bg-background text-foreground overflow-x-hidden`} suppressHydrationWarning>
+        {/* Ambient Background Effects */}
+        <div className="fixed inset-0 -z-50 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-background to-background pointer-events-none" />
+        <div className="fixed inset-0 -z-40 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))] opacity-20 pointer-events-none" />
+        
+        <main className="relative flex min-h-screen flex-col">
+          {children}
+        </main>
+        
         <Analytics />
-        {/* Register service worker for PWA behavior (client component, only runs on client) */}
         <PWARegister />
-        {/* Surface native PWA install when available */}
         <InstallPrompt />
       </body>
     </html>

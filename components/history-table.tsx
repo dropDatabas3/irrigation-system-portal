@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { GlassCard } from "@/components/ui/glass-card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -127,19 +127,19 @@ export function HistoryTable() {
   const pageRows = mapped // already paginated by server
 
   return (
-    <Card className="gradient-border">
-      <CardHeader>
-        <CardTitle className="text-foreground">Historial de Actividad</CardTitle>
-        <CardDescription>Datos reales desde el dispositivo y la base de datos</CardDescription>
-      </CardHeader>
-      <CardContent className="p-3 sm:p-4 md:p-6">
+    <GlassCard className="flex flex-col h-full">
+      <div className="p-6 pb-2">
+        <h3 className="text-lg font-medium text-foreground">Historial de Actividad</h3>
+        <p className="text-sm text-muted-foreground">Datos reales desde el dispositivo y la base de datos</p>
+      </div>
+      <div className="p-6 pt-0 flex-1">
         {/* Filters - Responsive Grid */}
         <div className="space-y-3 mb-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Evento</label>
               <Select value={eventType} onValueChange={(v: any) => { setEventType(v); setPage(1) }}>
-                <SelectTrigger className="h-9">
+                <SelectTrigger className="h-9 bg-background/50 border-white/10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -153,7 +153,7 @@ export function HistoryTable() {
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Válvula</label>
               <Select value={String(valveFilter)} onValueChange={(v: string) => { setValveFilter(Number(v)); setPage(1) }}>
-                <SelectTrigger className="h-9">
+                <SelectTrigger className="h-9 bg-background/50 border-white/10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -168,7 +168,7 @@ export function HistoryTable() {
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Origen</label>
               <Select value={originFilter} onValueChange={(v: any) => { setOriginFilter(v); setPage(1) }}>
-                <SelectTrigger className="h-9">
+                <SelectTrigger className="h-9 bg-background/50 border-white/10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -182,7 +182,7 @@ export function HistoryTable() {
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Por página</label>
               <Select value={String(pageSize)} onValueChange={(v: string) => { setPageSize(Number(v)); setPage(1) }}>
-                <SelectTrigger className="h-9">
+                <SelectTrigger className="h-9 bg-background/50 border-white/10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -201,7 +201,7 @@ export function HistoryTable() {
                 type="datetime-local" 
                 value={fromTs} 
                 onChange={(e) => { setFromTs(e.target.value); setPage(1) }} 
-                className="h-9" 
+                className="h-9 bg-background/50 border-white/10" 
               />
             </div>
 
@@ -211,7 +211,7 @@ export function HistoryTable() {
                 type="datetime-local" 
                 value={toTs} 
                 onChange={(e) => { setToTs(e.target.value); setPage(1) }} 
-                className="h-9" 
+                className="h-9 bg-background/50 border-white/10" 
               />
             </div>
 
@@ -221,7 +221,7 @@ export function HistoryTable() {
                 placeholder="Texto libre" 
                 value={q} 
                 onChange={(e) => { setQ(e.target.value); setPage(1) }} 
-                className="h-9" 
+                className="h-9 bg-background/50 border-white/10" 
               />
             </div>
 
@@ -229,7 +229,7 @@ export function HistoryTable() {
               <Button 
                 type="button" 
                 variant="outline" 
-                className="h-9 w-full" 
+                className="h-9 w-full bg-background/50 border-white/10 hover:bg-white/10" 
                 onClick={() => { 
                   setEventType('all'); 
                   setValveFilter(0); 
@@ -253,10 +253,10 @@ export function HistoryTable() {
         )}
 
         {/* Responsive Table Wrapper */}
-        <div className="rounded-lg border border-border overflow-x-auto">
+        <div className="rounded-lg border border-white/10 overflow-x-auto bg-background/30">
           <Table>
             <TableHeader>
-              <TableRow className="bg-secondary/50">
+              <TableRow className="bg-white/5 border-white/10 hover:bg-white/10">
                 <TableHead className="text-foreground whitespace-nowrap">Fecha y Hora</TableHead>
                 <TableHead className="text-foreground whitespace-nowrap">Válvula / Detalle</TableHead>
                 <TableHead className="text-foreground whitespace-nowrap">Evento</TableHead>
@@ -267,7 +267,7 @@ export function HistoryTable() {
             </TableHeader>
             <TableBody>
               {pageRows.map((row) => (
-                <TableRow key={row.id} className="hover:bg-secondary/30">
+                <TableRow key={row.id} className="border-white/10 hover:bg-white/5">
                   <TableCell className="font-medium text-foreground whitespace-nowrap">{row.timestamp}</TableCell>
                   <TableCell className="whitespace-nowrap">
                     <div className="flex items-center gap-2">
@@ -288,14 +288,14 @@ export function HistoryTable() {
                 </TableRow>
               ))}
               {(!loading && mapped.length === 0) && (
-                <TableRow>
+                <TableRow className="border-white/10 hover:bg-transparent">
                   <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">
                     No hay eventos que coincidan con los filtros.
                   </TableCell>
                 </TableRow>
               )}
               {loading && (
-                <TableRow>
+                <TableRow className="border-white/10 hover:bg-transparent">
                   <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">
                     Cargando eventos...
                   </TableCell>
@@ -306,7 +306,7 @@ export function HistoryTable() {
         </div>
 
         {/* Pagination */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 pt-4 border-t border-border">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 pt-4 border-t border-white/10">
           <div className="text-xs sm:text-sm text-muted-foreground">
             Página {page} de {totalPages} • {total} evento{total !== 1 ? 's' : ''}
           </div>
@@ -315,7 +315,7 @@ export function HistoryTable() {
               type="button" 
               variant="outline" 
               size="sm" 
-              className="h-9" 
+              className="h-9 bg-background/50 border-white/10 hover:bg-white/10" 
               disabled={page <= 1} 
               onClick={() => setPage(p => Math.max(1, p - 1))}
             >
@@ -325,7 +325,7 @@ export function HistoryTable() {
               type="button" 
               variant="outline" 
               size="sm" 
-              className="h-9" 
+              className="h-9 bg-background/50 border-white/10 hover:bg-white/10" 
               disabled={page >= totalPages} 
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
             >
@@ -333,7 +333,7 @@ export function HistoryTable() {
             </Button>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </GlassCard>
   )
 }

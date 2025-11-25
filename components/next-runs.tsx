@@ -1,15 +1,17 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, Droplets, Pencil, Trash2, X, Check } from "lucide-react"
+import { Clock, Droplets, Pencil, Trash2, X, Check, Calendar } from "lucide-react"
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useIrrigationEvents } from "@/lib/useEvents"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useId } from "react"
 import { Button } from '@/components/ui/button'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { fetchConfigDedupe } from "@/lib/config-client"
+import { GlassCard } from "@/components/ui/glass-card"
+import { motion, AnimatePresence } from "framer-motion"
+import { cn } from "@/lib/utils"
 
 function numValveToLabel(v: number) {
   if (v === 1) return "V1"
@@ -30,8 +32,10 @@ function formatWhen(tsSec: number) {
   return `${d.toLocaleDateString()} ${time}`
 }
 
+function keyFor(j: { at: number; valve: number }) { return `${j.valve}|${j.at}` }
+
 export function NextRuns() {
-  const { lastConfigAck } = useIrrigationEvents()
+  useIrrigationEvents() // Keep subscription active but ignore return
   const [jobs, setJobs] = useState<Array<{ at: number; valve: number; liters?: number }>>([])
   const [didFetch, setDidFetch] = useState(false)
   const [selected, setSelected] = useState<Record<string, boolean>>({})
@@ -40,6 +44,9 @@ export function NextRuns() {
   const [editLiters, setEditLiters] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [overridesVersion, setOverridesVersion] = useState(0)
+  
+  const editDateId = useId()
+  const editLitersId = useId()
 
   // Always fetch jobs from API (device ack doesn't contain materialized jobs, only schedule metadata)
   useEffect(() => {
@@ -74,8 +81,6 @@ export function NextRuns() {
 
   const selectedCount = Object.values(selected).filter(Boolean).length
   const selectedJobs = items.filter(j => selected[`${j.valve}|${j.at}`])
-
-  function keyFor(j: { at: number; valve: number }) { return `${j.valve}|${j.at}` }
 
   function selectOne(j: { at: number; valve: number }) {
     setSelected({ [keyFor(j)]: true })
@@ -153,14 +158,11 @@ export function NextRuns() {
     } catch (e) { console.error('suppress failed', e) } finally { setConfirmBusy(false); setConfirmSingleOpen(null) }
   }
 
-  // Simple click behavior: if nothing selected -> select this one (single select).
-  // If there is an active selection -> toggle this one to allow multi-select via single clicks.
   function handleItemClick(j: { at: number; valve: number }) {
     if (selectedCount === 0) selectOne(j)
     else toggleOne(j)
   }
 
-  // Clear selection when clicking outside the card. Use capture to run before other handlers.
   const [rootEl, setRootEl] = useState<HTMLDivElement | null>(null)
   useEffect(() => {
     function onDocPointerDown(e: any) {
@@ -173,102 +175,165 @@ export function NextRuns() {
   }, [rootEl, selectedCount])
 
   return (
-    <Card className="gradient-border" ref={setRootEl as any}>
-      <CardHeader>
-        <CardTitle className="text-foreground">Próximos Riegos</CardTitle>
-        {items.length > 0 && (
-          <CardDescription>
-            Próximas 10 ejecuciones programadas {selectedCount > 0 && `(${selectedCount} seleccionados)`}
-          </CardDescription>
-        )}
-  {selectedCount > 0 && (
-          <div className="flex flex-wrap items-center gap-2 mt-2">
-            {selectedCount === 1 ? (
-              <>
-                <Button variant="default" size="sm" disabled={submitting} onClick={() => { const j = selectedJobs[0]; if (j) openEdit(j) }}>
-                  <Pencil className="w-4 h-4 mr-1" /> Editar
+    <GlassCard className="p-6" ref={setRootEl as any}>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-primary" />
+            Próximos Riegos
+          </h2>
+          {items.length > 0 && (
+            <p className="text-sm text-muted-foreground">
+              Próximas 10 ejecuciones {selectedCount > 0 && `(${selectedCount} seleccionados)`}
+            </p>
+          )}
+        </div>
+        
+        <AnimatePresence>
+          {selectedCount > 0 && (
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="flex items-center gap-2"
+            >
+              {selectedCount === 1 ? (
+                <>
+                  <Button variant="secondary" size="sm" disabled={submitting} onClick={() => { const j = selectedJobs[0]; if (j) openEdit(j) }}>
+                    <Pencil className="w-4 h-4 mr-1" /> Editar
+                  </Button>
+                  <Button variant="destructive" size="sm" disabled={submitting} onClick={() => { const j = selectedJobs[0]; if (j) suppressJob(j) }}>
+                    <Trash2 className="w-4 h-4 mr-1" /> Borrar
+                  </Button>
+                </>
+              ) : (
+                <Button variant="destructive" size="sm" disabled={submitting} onClick={handleDeleteSelected}>
+                  <Trash2 className="w-4 h-4 mr-1" /> Borrar ({selectedCount})
                 </Button>
-                <Button variant="destructive" size="sm" disabled={submitting} onClick={() => { const j = selectedJobs[0]; if (j) suppressJob(j) }}>
-                  <Trash2 className="w-4 h-4 mr-1" /> Borrar
-                </Button>
-              </>
-            ) : (
-              <Button variant="destructive" size="sm" disabled={submitting} onClick={handleDeleteSelected}>
-                <Trash2 className="w-4 h-4 mr-1" /> Borrar seleccionados
+              )}
+              <Button variant="ghost" size="sm" disabled={submitting} onClick={clearSelection}>
+                <X className="w-4 h-4" />
               </Button>
-            )}
-            <Button variant="outline" size="sm" disabled={submitting} onClick={clearSelection}>
-              <X className="w-4 h-4 mr-1" /> Cancelar
-            </Button>
-          </div>
-        )}
-      </CardHeader>
-      <CardContent>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <div className="min-h-[100px]">
         {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No hay riegos próximos programados</p>
+          <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+            <Calendar className="w-12 h-12 mb-2 opacity-20" />
+            <p className="text-sm">No hay riegos próximos programados</p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {items.map((j) => {
-              const k = keyFor(j)
-              const isSel = !!selected[k]
-              return (
-              <button
-                key={k}
-                type="button"
-                className={`text-left flex flex-col gap-2 p-3 rounded-lg bg-secondary/40 border border-border transition focus:outline-none focus:ring-2 focus:ring-primary/60 hover:bg-secondary/55 active:scale-[0.98] ${isSel ? 'ring-2 ring-primary shadow-[0_0_0_1px_var(--ring)]' : ''}`}
-                onClick={() => handleItemClick(j)}
-              >
-                <div className="flex items-center gap-3">
-                  {/* Visual radio/check indicator (no input) appears once there is at least one selected */}
-                  {selectedCount > 0 && (
-                    <span className="run-radio pointer-events-none">
-                      <span className={`run-radio-design ${isSel ? 'is-checked' : ''}`} />
-                    </span>
-                  )}
-                  <div className="text-sm">
-                    <div className="text-foreground flex items-center gap-2 flex-wrap">
-                      <Clock className="w-4 h-4 text-primary" />
-                      {formatWhen(j.at)}
-                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-primary/15 text-primary border border-primary/30">
-                        {numValveToLabel(j.valve)}
-                      </span>
-                    </div>
-                    {Number.isFinite(j.liters) && j.liters! > 0 ? (
-                      <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <Droplets className="w-3 h-3" /> {j.liters} L
+            <AnimatePresence mode="popLayout">
+              {items.map((j, index) => {
+                const k = keyFor(j)
+                const isSel = !!selected[k]
+                return (
+                  <motion.button
+                    layout
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ delay: index * 0.05 }}
+                    key={k}
+                    type="button"
+                    className={cn(
+                      "relative text-left flex flex-col gap-2 p-4 rounded-xl border transition-all duration-200 group",
+                      isSel 
+                        ? "bg-primary/10 border-primary/50 shadow-[0_0_0_1px_var(--primary)]" 
+                        : "bg-card/40 border-white/5 hover:bg-card/60 hover:border-white/10"
+                    )}
+                    onClick={() => handleItemClick(j)}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "p-2 rounded-full transition-colors",
+                          isSel ? "bg-primary text-primary-foreground" : "bg-white/5 text-muted-foreground group-hover:bg-white/10"
+                        )}>
+                          <Clock className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-foreground">
+                            {formatWhen(j.at)}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-white/10 bg-white/5">
+                              {numValveToLabel(j.valve)}
+                            </Badge>
+                            {Number.isFinite(j.liters) && j.liters! > 0 && (
+                              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Droplets className="w-3 h-3" /> {j.liters} L
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    ) : null}
-                  </div>
-                </div>
-              </button>
-            )})}
+                      
+                      {/* Selection Indicator */}
+                      <div className={cn(
+                        "w-5 h-5 rounded-full border flex items-center justify-center transition-all",
+                        isSel ? "border-primary bg-primary text-primary-foreground" : "border-white/20 bg-transparent"
+                      )}>
+                        {isSel && <Check className="w-3 h-3" />}
+                      </div>
+                    </div>
+                  </motion.button>
+                )
+              })}
+            </AnimatePresence>
           </div>
         )}
-      </CardContent>
+      </div>
+
       <Sheet open={!!editJob} onOpenChange={(o) => { if (!o) setEditJob(null) }}>
-        <SheetContent>
+        <SheetContent className="border-l border-white/10 bg-card/95 backdrop-blur-xl">
           <SheetHeader>
             <SheetTitle>Editar Riego</SheetTitle>
           </SheetHeader>
           {editJob && (
-            <div className="space-y-4 mt-4">
-              <div>
-                <label className="text-xs font-medium">Fecha/Hora nueva</label>
-                <Input type="datetime-local" value={editAt} onChange={e => setEditAt(e.target.value)} />
+            <div className="space-y-6 mt-6">
+              <div className="space-y-2">
+                <label htmlFor={editDateId} className="text-sm font-medium text-muted-foreground">Fecha y Hora</label>
+                <Input 
+                  id={editDateId}
+                  type="datetime-local" 
+                  value={editAt} 
+                  onChange={e => setEditAt(e.target.value)}
+                  className="bg-white/5 border-white/10 focus:border-primary/50" 
+                />
               </div>
-              <div>
-                <label className="text-xs font-medium">Litros</label>
-                <Input type="number" min={0} step={0.1} value={editLiters} onChange={e => setEditLiters(e.target.value)} />
+              <div className="space-y-2">
+                <label htmlFor={editLitersId} className="text-sm font-medium text-muted-foreground">Cantidad (Litros)</label>
+                <div className="relative">
+                  <Input 
+                    id={editLitersId}
+                    type="number" 
+                    min={0} 
+                    step={0.1} 
+                    value={editLiters} 
+                    onChange={e => setEditLiters(e.target.value)}
+                    className="bg-white/5 border-white/10 focus:border-primary/50 pl-9" 
+                  />
+                  <Droplets className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                </div>
               </div>
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => setEditJob(null)} disabled={submitting}><X className="w-4 h-4" /> Cancelar</Button>
-                <Button onClick={submitEdit} disabled={submitting}><Check className="w-4 h-4" /> Guardar</Button>
+              <div className="flex gap-3 pt-4">
+                <Button variant="outline" className="flex-1" onClick={() => setEditJob(null)} disabled={submitting}>
+                  Cancelar
+                </Button>
+                <Button className="flex-1" onClick={submitEdit} disabled={submitting}>
+                  Guardar Cambios
+                </Button>
               </div>
             </div>
           )}
-          <SheetFooter></SheetFooter>
         </SheetContent>
       </Sheet>
+
       <ConfirmDialog
         open={confirmBulkOpen}
         destructive
@@ -277,7 +342,7 @@ export function NextRuns() {
         description={<>
           <p>Se omitirán {selectedCount} riego(s) futuros.</p>
           <p>Los riegos omitidos no se ejecutarán en el dispositivo.</p>
-          <p className="text-red-500">Acción potencialmente irreversible para el día actual.</p>
+          <p className="text-red-500 mt-2 font-medium">Acción potencialmente irreversible para el día actual.</p>
         </>}
         confirmLabel="Eliminar"
         cancelLabel="Cancelar"
@@ -290,8 +355,10 @@ export function NextRuns() {
         loading={confirmBusy}
         title="Omitir riego"
         description={confirmSingleOpen ? <>
-          <p>Válvula: {numValveToLabel(confirmSingleOpen.valve)}</p>
-          <p>Programado: {formatWhen(confirmSingleOpen.at)}</p>
+          <div className="bg-destructive/10 p-4 rounded-lg border border-destructive/20 mb-2">
+            <p className="font-medium text-destructive">Válvula: {numValveToLabel(confirmSingleOpen.valve)}</p>
+            <p className="text-sm text-muted-foreground">Programado: {formatWhen(confirmSingleOpen.at)}</p>
+          </div>
           <p>Este riego no se ejecutará en el dispositivo.</p>
         </> : null}
         confirmLabel="Omitir"
@@ -299,6 +366,6 @@ export function NextRuns() {
         onConfirm={doSingleSuppress}
         onCancel={() => !confirmBusy && setConfirmSingleOpen(null)}
       />
-    </Card>
+    </GlassCard>
   )
 }

@@ -1,7 +1,7 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Legend } from "recharts"
+import { GlassCard } from "@/components/ui/glass-card"
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Legend, ResponsiveContainer } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { useEffect, useMemo, useState } from "react"
 import { Droplets } from "lucide-react"
@@ -83,7 +83,7 @@ export function WaterUsageChart() {
       const valve = Number(it?.payload?.valve)
       const liters = Number(it?.payload?.deliveredLiters ?? it?.payload?.liters ?? 0)
       const durMs = Number(it?.payload?.durationMs ?? 0)
-      if (!(liters > 0)) continue
+      if (liters <= 0) continue
       
       const d = new Date(ts)
       const key = d.toLocaleDateString()
@@ -111,14 +111,14 @@ export function WaterUsageChart() {
   }, [timeRange, customStart, customEnd])
 
   return (
-    <Card className="gradient-border">
-      <CardHeader className="p-4 sm:p-5 md:p-6">
-        <CardTitle className="text-lg sm:text-xl text-foreground">Consumo de Agua</CardTitle>
-        <CardDescription className="mt-1">{timeRangeDescription}</CardDescription>
-      </CardHeader>
-      <CardContent className="p-4 sm:p-5 md:p-6 pt-0">
+    <GlassCard className="flex flex-col h-full">
+      <div className="p-6 pb-2">
+        <h3 className="text-lg font-medium text-foreground">Consumo de Agua</h3>
+        <p className="text-sm text-muted-foreground">{timeRangeDescription}</p>
+      </div>
+      <div className="p-6 pt-0 flex-1">
         {error && (
-          <div className="h-72 sm:h-80 md:h-96 w-full flex items-center justify-center">
+          <div className="h-[300px] w-full flex items-center justify-center">
             <div className="text-center space-y-2">
               <p className="text-sm text-red-400">Error al cargar datos</p>
               <p className="text-xs text-muted-foreground">{error}</p>
@@ -126,12 +126,12 @@ export function WaterUsageChart() {
           </div>
         )}
         {!error && loading && (
-          <div className="h-72 sm:h-80 md:h-96 w-full flex items-center justify-center text-sm text-muted-foreground">
+          <div className="h-[300px] w-full flex items-center justify-center text-sm text-muted-foreground">
             Cargando datos del consumo...
           </div>
         )}
         {!error && !loading && chartData.length === 0 && (
-          <div className="h-72 sm:h-80 md:h-96 w-full flex items-center justify-center">
+          <div className="h-[300px] w-full flex items-center justify-center">
             <div className="text-center space-y-2">
               <Droplets className="w-12 h-12 mx-auto text-muted-foreground/50" />
               <p className="text-sm text-muted-foreground">No hay datos de consumo disponibles</p>
@@ -139,57 +139,59 @@ export function WaterUsageChart() {
           </div>
         )}
         {!error && !loading && chartData.length > 0 && (
-          <ChartContainer config={chartConfig} className="h-72 sm:h-80 md:h-96 w-full">
-            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <defs>
-                {VALVE_COLORS.map((vc) => (
-                  <linearGradient key={vc.fillId} id={vc.fillId} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={vc.color} stopOpacity={0.4} />
-                    <stop offset="95%" stopColor={vc.color} stopOpacity={0.05} />
-                  </linearGradient>
-                ))}
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-              <XAxis
-                dataKey="date"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-              />
-              <YAxis
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                width={45}
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-              />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Legend 
-                verticalAlign="top" 
-                height={36}
-                iconType="line"
-                formatter={(value) => `Válvula ${value.replace('v', '')}`}
-              />
-              {selectedValves.map((valve, idx) => {
-                const colorIdx = idx % VALVE_COLORS.length
-                const vc = VALVE_COLORS[colorIdx]
-                return (
-                  <Area
-                    key={valve}
-                    type="monotone"
-                    dataKey={`v${valve}`}
-                    stroke={vc.color}
-                    fill={`url(#${vc.fillId})`}
-                    strokeWidth={2.5}
-                    name={`v${valve}`}
-                  />
-                )
-              })}
-            </AreaChart>
+          <ChartContainer config={chartConfig} className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <defs>
+                  {VALVE_COLORS.map((vc) => (
+                    <linearGradient key={vc.fillId} id={vc.fillId} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={vc.color} stopOpacity={0.4} />
+                      <stop offset="95%" stopColor={vc.color} stopOpacity={0.05} />
+                    </linearGradient>
+                  ))}
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  width={45}
+                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Legend 
+                  verticalAlign="top" 
+                  height={36}
+                  iconType="line"
+                  formatter={(value) => `Válvula ${value.replace('v', '')}`}
+                />
+                {selectedValves.map((valve, idx) => {
+                  const colorIdx = idx % VALVE_COLORS.length
+                  const vc = VALVE_COLORS[colorIdx]
+                  return (
+                    <Area
+                      key={valve}
+                      type="monotone"
+                      dataKey={`v${valve}`}
+                      stroke={vc.color}
+                      fill={`url(#${vc.fillId})`}
+                      strokeWidth={2.5}
+                      name={`v${valve}`}
+                    />
+                  )
+                })}
+              </AreaChart>
+            </ResponsiveContainer>
           </ChartContainer>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </GlassCard>
   )
 }

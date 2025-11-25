@@ -4,86 +4,102 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Updated theme to dark with cyan/turquoise tones and gradients */
-  /* Slightly lighter background for better contrast and soft shadows */
-  --background: oklch(0.14 0.02 240);
-  --foreground: oklch(0.95 0.01 240);
-  --card: oklch(0.18 0.025 240);
-  --card-foreground: oklch(0.95 0.01 240);
-  --popover: oklch(0.16 0.02 240);
-  --popover-foreground: oklch(0.95 0.01 240);
-  --primary: oklch(0.65 0.15 195);
-  --primary-foreground: oklch(0.98 0.01 240);
-  --secondary: oklch(0.22 0.03 240);
-  --secondary-foreground: oklch(0.95 0.01 240);
-  --muted: oklch(0.2 0.025 240);
-  --muted-foreground: oklch(0.6 0.02 240);
-  --accent: oklch(0.55 0.18 180);
-  --accent-foreground: oklch(0.98 0.01 240);
-  --destructive: oklch(0.55 0.22 25);
-  --destructive-foreground: oklch(0.98 0.01 240);
-  --border: oklch(0.25 0.03 240);
-  --input: oklch(0.22 0.03 240);
-  --ring: oklch(0.65 0.15 195);
-  --chart-1: oklch(0.65 0.15 195);
-  --chart-2: oklch(0.55 0.18 180);
-  --chart-3: oklch(0.6 0.12 210);
-  --chart-4: oklch(0.7 0.1 170);
-  --chart-5: oklch(0.5 0.2 200);
-  --radius: 0.75rem;
-  --sidebar: oklch(0.14 0.025 240);
-  --sidebar-foreground: oklch(0.95 0.01 240);
-  --sidebar-primary: oklch(0.65 0.15 195);
-  --sidebar-primary-foreground: oklch(0.98 0.01 240);
-  --sidebar-accent: oklch(0.2 0.03 240);
-  --sidebar-accent-foreground: oklch(0.95 0.01 240);
-  --sidebar-border: oklch(0.25 0.03 240);
-  --sidebar-ring: oklch(0.65 0.15 195);
+  /* Agro-Tech Theme V2.0 - Light Mode (Clean & Technical) */
+  --background: oklch(0.98 0.01 160); /* Soft Mint White */
+  --foreground: oklch(0.2 0.03 160);  /* Deep Forest Green */
+  
+  --card: oklch(1 0 0 / 0.7);
+  --card-foreground: oklch(0.2 0.03 160);
+  
+  --popover: oklch(1 0 0 / 0.9);
+  --popover-foreground: oklch(0.2 0.03 160);
+  
+  --primary: oklch(0.6 0.18 150);     /* Vibrant Leaf Green */
+  --primary-foreground: oklch(0.98 0.01 160);
+  
+  --secondary: oklch(0.95 0.03 160);  /* Pale Green */
+  --secondary-foreground: oklch(0.3 0.05 160);
+  
+  --muted: oklch(0.96 0.01 160);
+  --muted-foreground: oklch(0.5 0.04 160);
+  
+  --accent: oklch(0.94 0.04 150);
+  --accent-foreground: oklch(0.3 0.05 160);
+  
+  --destructive: oklch(0.6 0.2 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  
+  --border: oklch(0.9 0.02 160);
+  --input: oklch(0.9 0.02 160);
+  --ring: oklch(0.6 0.18 150);
+  
+  --radius: 1rem; /* More rounded for modern feel */
 
-  /* Custom gradient colors */
-  --gradient-start: oklch(0.65 0.15 195);
-  --gradient-end: oklch(0.55 0.18 180);
-  --gradient-accent: oklch(0.6 0.12 210);
+  /* Charts */
+  --chart-1: oklch(0.6 0.18 150); /* Green */
+  --chart-2: oklch(0.55 0.2 250); /* Blue */
+  --chart-3: oklch(0.7 0.15 180); /* Teal */
+  --chart-4: oklch(0.65 0.2 80);  /* Orange */
+  --chart-5: oklch(0.6 0.2 300);  /* Purple */
+
+  --sidebar: oklch(0.98 0.01 160);
+  --sidebar-foreground: oklch(0.2 0.03 160);
+  --sidebar-primary: oklch(0.6 0.18 150);
+  --sidebar-primary-foreground: oklch(0.98 0.01 160);
+  --sidebar-accent: oklch(0.95 0.03 160);
+  --sidebar-accent-foreground: oklch(0.2 0.03 160);
+  --sidebar-border: oklch(0.9 0.02 160);
+  --sidebar-ring: oklch(0.6 0.18 150);
+
+  /* Gradients */
+  --gradient-start: oklch(0.6 0.18 150);
+  --gradient-end: oklch(0.5 0.2 250);
 }
 
 .dark {
-  --background: oklch(0.14 0.02 240);
-  --foreground: oklch(0.95 0.01 240);
-  --card: oklch(0.18 0.025 240);
-  --card-foreground: oklch(0.95 0.01 240);
-  --popover: oklch(0.16 0.02 240);
-  --popover-foreground: oklch(0.95 0.01 240);
-  --primary: oklch(0.65 0.15 195);
-  --primary-foreground: oklch(0.98 0.01 240);
-  --secondary: oklch(0.22 0.03 240);
-  --secondary-foreground: oklch(0.95 0.01 240);
-  --muted: oklch(0.2 0.025 240);
-  --muted-foreground: oklch(0.6 0.02 240);
-  --accent: oklch(0.55 0.18 180);
-  --accent-foreground: oklch(0.98 0.01 240);
-  --destructive: oklch(0.55 0.22 25);
-  --destructive-foreground: oklch(0.98 0.01 240);
-  --border: oklch(0.25 0.03 240);
-  --input: oklch(0.22 0.03 240);
-  --ring: oklch(0.65 0.15 195);
-  --chart-1: oklch(0.65 0.15 195);
-  --chart-2: oklch(0.55 0.18 180);
-  --chart-3: oklch(0.6 0.12 210);
-  --chart-4: oklch(0.7 0.1 170);
-  --chart-5: oklch(0.5 0.2 200);
-  --sidebar: oklch(0.14 0.025 240);
-  --sidebar-foreground: oklch(0.95 0.01 240);
-  --sidebar-primary: oklch(0.65 0.15 195);
-  --sidebar-primary-foreground: oklch(0.98 0.01 240);
-  --sidebar-accent: oklch(0.2 0.03 240);
-  --sidebar-accent-foreground: oklch(0.95 0.01 240);
-  --sidebar-border: oklch(0.25 0.03 240);
-  --sidebar-ring: oklch(0.65 0.15 195);
+  /* Agro-Tech Theme V2.0 - Dark Mode (Neon & Glass) */
+  --background: oklch(0.12 0.03 160); /* Deep Jungle Dark */
+  --foreground: oklch(0.98 0.01 160);
+  
+  --card: oklch(0.15 0.04 160 / 0.6); /* Glassy Dark Green */
+  --card-foreground: oklch(0.98 0.01 160);
+  
+  --popover: oklch(0.15 0.04 160 / 0.9);
+  --popover-foreground: oklch(0.98 0.01 160);
+  
+  --primary: oklch(0.7 0.2 150);      /* Neon Green */
+  --primary-foreground: oklch(0.1 0.05 160);
+  
+  --secondary: oklch(0.2 0.05 160);   /* Dark Green Surface */
+  --secondary-foreground: oklch(0.98 0.01 160);
+  
+  --muted: oklch(0.2 0.03 160);
+  --muted-foreground: oklch(0.7 0.05 160);
+  
+  --accent: oklch(0.25 0.06 160);
+  --accent-foreground: oklch(0.98 0.01 160);
+  
+  --destructive: oklch(0.6 0.2 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  
+  --border: oklch(0.25 0.05 160);
+  --input: oklch(0.2 0.04 160);
+  --ring: oklch(0.7 0.2 150);
+
+  --sidebar: oklch(0.1 0.03 160);
+  --sidebar-foreground: oklch(0.98 0.01 160);
+  --sidebar-primary: oklch(0.7 0.2 150);
+  --sidebar-primary-foreground: oklch(0.1 0.05 160);
+  --sidebar-accent: oklch(0.2 0.05 160);
+  --sidebar-accent-foreground: oklch(0.98 0.01 160);
+  --sidebar-border: oklch(0.2 0.04 160);
+  --sidebar-ring: oklch(0.7 0.2 150);
 }
 
 @theme inline {
-  --font-sans: "Geist", "Geist Fallback";
-  --font-mono: "Geist Mono", "Geist Mono Fallback";
+  --font-sans: "Geist", "Inter", sans-serif;
+  --font-mono: "Geist Mono", "Fira Code", monospace;
+  
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -103,15 +119,18 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -120,6 +139,9 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-glow: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 @layer base {
@@ -127,50 +149,57 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased selection:bg-primary/30 selection:text-primary;
+    font-feature-settings: "ss01", "ss02", "cv01", "cv02";
   }
 }
 
-/* Custom gradient utilities */
 @layer utilities {
-  .gradient-primary {
-    background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
+  /* Glassmorphism Utilities */
+  .glass {
+    @apply bg-card/60 backdrop-blur-xl border border-white/10 shadow-lg;
+  }
+  
+  .glass-hover {
+    @apply hover:bg-card/80 hover:border-primary/30 transition-all duration-300;
   }
 
-  .gradient-accent {
-    background: linear-gradient(135deg, var(--gradient-end) 0%, var(--gradient-accent) 100%);
+  .glass-panel {
+    background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
   }
 
-  .gradient-border {
-    position: relative;
-    background: var(--card);
-    /* Subtle depth */
-    box-shadow: 0 6px 18px rgba(0,0,0,0.35), 0 1px 0 rgba(255,255,255,0.02) inset;
+  .text-glow {
+    text-shadow: 0 0 20px var(--primary);
   }
 
-  .gradient-border::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    border-radius: inherit;
-    padding: 1px;
-    background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
+  /* Animations */
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 1; box-shadow: 0 0 20px var(--primary); }
+    50% { opacity: 0.5; box-shadow: 0 0 5px var(--primary); }
   }
 
-  /* Inner soft highlight for a subtle 3D feel */
-  .gradient-border::after {
-    content: "";
-    position: absolute;
-    inset: 1px;
-    pointer-events: none;
-    border-radius: inherit;
-    background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.00) 35%);
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
   }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/20 rounded-full hover:bg-muted-foreground/40 transition-colors;
+  }
+}
+
+/* ...existing code... */
 
   /* Animated liquid effect for tank */
   .liquid-tank {
@@ -339,7 +368,7 @@
     100% { opacity: 1; filter: blur(0) saturate(100%); }
   }
   .animate-dashboard-in { animation: dashboardFadeIn 480ms cubic-bezier(.24,.8,.32,1) forwards; }
-}
+
 
 
 
