@@ -82,11 +82,10 @@ export function WaterUsageChart() {
       if (!Number.isFinite(ts)) continue
       const valve = Number(it?.payload?.valve)
       const liters = Number(it?.payload?.deliveredLiters ?? it?.payload?.liters ?? 0)
-      const durMs = Number(it?.payload?.durationMs ?? 0)
       if (liters <= 0) continue
       
       const d = new Date(ts)
-      const key = d.toLocaleDateString()
+      const key = d.toISOString().split('T')[0] // YYYY-MM-DD
       if (!byDay.has(key)) {
         byDay.set(key, { date: key })
       }
@@ -95,7 +94,7 @@ export function WaterUsageChart() {
     }
     
     const arr = Array.from(byDay.values())
-    arr.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    arr.sort((a, b) => a.date.localeCompare(b.date))
     return arr
   }, [items, selectedValves, timeRange, customStart])
 
@@ -157,6 +156,7 @@ export function WaterUsageChart() {
                   axisLine={false}
                   tickMargin={8}
                   tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                  tickFormatter={(value) => new Date(value).toLocaleDateString()}
                 />
                 <YAxis
                   tickLine={false}

@@ -20,6 +20,7 @@ export function ProfilesPanel() {
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
   const [fromValve, setFromValve] = useState<'v1'|'v2'|'v3'|'v4'|''>('')
+  const [previewSchedule, setPreviewSchedule] = useState<any>(null)
   const [selectedProfile, setSelectedProfile] = useState<string>('')
   const [replaceFromValve, setReplaceFromValve] = useState<'v1'|'v2'|'v3'|'v4'|''>('')
   const [deleting, setDeleting] = useState<string>('')
@@ -29,6 +30,15 @@ export function ProfilesPanel() {
     globalThis.addEventListener('profiles:open', onOpen)
     return () => globalThis.removeEventListener('profiles:open', onOpen)
   }, [])
+
+  // Fetch preview when fromValve changes
+  useEffect(() => {
+    if (!fromValve) {
+      setPreviewSchedule(null)
+      return
+    }
+    readValveSchedule(fromValve as any).then(setPreviewSchedule)
+  }, [fromValve])
 
   const load = async () => {
     setLoading(true)
@@ -250,6 +260,23 @@ export function ProfilesPanel() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Preview Section */}
+                {previewSchedule && (
+                  <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-xs space-y-1">
+                    <p className="font-medium text-foreground">Vista previa:</p>
+                    <div className="grid grid-cols-2 gap-2 text-muted-foreground">
+                      <span>Modo: <span className="text-foreground">{previewSchedule.mode || '-'}</span></span>
+                      <span>Duración: <span className="text-foreground">{previewSchedule.durationMin ?? '-'} min</span></span>
+                      {previewSchedule.jobs?.length > 0 && (
+                        <span className="col-span-2">
+                          {previewSchedule.jobs.length} riegos programados
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <Button 
                   className="w-full mt-2" 
                   onClick={handleCreateFromValve} 

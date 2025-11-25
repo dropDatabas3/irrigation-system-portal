@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { withDb } from '@/lib/db'
 import { getDeviceId } from '@/lib/mqttServer'
 
+// See app/api/metrics/route.ts for details
+const CORRECTION_FACTOR = 1
+
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
@@ -59,7 +62,7 @@ export async function GET(req: Request) {
     })
 
     const series = Array.isArray(items)
-      ? items.map((x: any) => ({ day: x._id, liters: x.liters, runs: x.runs }))
+      ? items.map((x: any) => ({ day: x._id, liters: x.liters * CORRECTION_FACTOR, runs: x.runs }))
       : []
 
     return NextResponse.json({ ok: true, series, start: s, end: e })

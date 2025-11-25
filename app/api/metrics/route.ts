@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server'
 import { withDb } from '@/lib/db'
 import { getDeviceId } from '@/lib/mqttServer'
 
+// If your flow sensor reports incorrect values (e.g. 170L instead of 2L),
+// you can adjust this factor. Default is 1.0.
+// Example: If reporting 170L for 2L real, set to 2.0/170.0 (~0.01176)
+const CORRECTION_FACTOR = 1
+
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
@@ -74,8 +79,8 @@ export async function GET(req: Request) {
     })
 
     const totals = (result as any)?.totals || { monthLiters: 0, sevenDayLiters: 0, thirtyDayDurationMs: 0 }
-    const totalMonthLiters = Number((totals.monthLiters || 0).toFixed(2))
-    const avgDayLiters = Number(((totals.sevenDayLiters || 0) / 7).toFixed(2))
+    const totalMonthLiters = Number(((totals.monthLiters || 0) * CORRECTION_FACTOR).toFixed(2))
+    const avgDayLiters = Number((((totals.sevenDayLiters || 0) * CORRECTION_FACTOR) / 7).toFixed(2))
     const totalActiveHours = Number(((totals.thirtyDayDurationMs || 0) / 3600000).toFixed(2))
 
     return NextResponse.json({ 

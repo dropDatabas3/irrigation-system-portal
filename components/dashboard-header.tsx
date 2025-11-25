@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Droplets, LogOut, Settings, User, BarChart3, TestTube } from "lucide-react"
+import { LogOut, Settings, User, BarChart3, TestTube } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useIrrigationEvents } from "@/lib/useEvents"
 import Image from "next/image"
@@ -35,9 +35,16 @@ export function DashboardHeader() {
       } catch {}
     }
     load()
+    
+    const onUpdate = () => load()
+    globalThis.addEventListener('tank:update', onUpdate)
+
     // slight debounce after a result
     if (lastResult) setTimeout(load, 300)
-    return () => { cancelled = true }
+    return () => { 
+      cancelled = true 
+      globalThis.removeEventListener('tank:update', onUpdate)
+    }
   }, [lastResult])
 
   const handleLogout = async () => {
@@ -61,12 +68,11 @@ export function DashboardHeader() {
     >
       <div className="container mx-auto px-4 md:px-6 lg:px-8 h-16 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/60 shadow-lg shadow-primary/20 flex items-center justify-center ring-1 ring-white/20">
-            <Droplets className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/60 shadow-lg shadow-primary/20 flex items-center justify-center ring-1 ring-white/20 relative overflow-hidden">
+            <Image src="/pineapple_logo.png" alt="PineApple Logo" fill className="object-cover" />
           </div>
           <div>
             <h1 className="text-lg font-bold text-foreground tracking-tight">PineApple Grow</h1>
-            <p className="text-xs text-muted-foreground font-medium">Panel de Control V2.0</p>
           </div>
         </div>
 
@@ -77,7 +83,7 @@ export function DashboardHeader() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               type="button" 
-              onClick={() => window.dispatchEvent(new CustomEvent('tank:open'))} 
+              onClick={() => globalThis.dispatchEvent(new CustomEvent('tank:open'))} 
               className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 transition-colors backdrop-blur-md shadow-sm"
             >
               <div className="w-5 h-5 relative">

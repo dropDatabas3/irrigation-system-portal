@@ -23,6 +23,13 @@ export function TankStatusCard({ initial, disableInitialFetch = false }: Readonl
   const [volumeInput, setVolumeInput] = useState('')
   const [capacityInput, setCapacityInput] = useState('')
 
+  // Pre-fill capacity input when capacity is loaded and input is empty
+  useEffect(() => {
+    if (capacity > 0 && !capacityInput) {
+      setCapacityInput(String(capacity))
+    }
+  }, [capacity])
+
   const refresh = async () => {
     setLoading(true)
     try {
@@ -32,6 +39,8 @@ export function TankStatusCard({ initial, disableInitialFetch = false }: Readonl
         setCurrent(Math.max(0, Number(j.currentLiters) || 0))
         setCapacity(Math.max(0, Number(j.capacityLiters) || 0))
         setPercent(Math.max(0, Math.min(100, Number(j.percent) || 0)))
+        // Dispatch global event to update other components (like Header)
+        globalThis.dispatchEvent(new CustomEvent('tank:update'))
       }
     } catch {}
     setLoading(false)
@@ -63,10 +72,29 @@ export function TankStatusCard({ initial, disableInitialFetch = false }: Readonl
       const j = await res.json()
       if (j?.ok) {
         setVolumeInput('')
-        setCapacityInput('')
+        // Don't clear capacity input, keep it for reference/editing
         setCurrent(Math.max(0, Number(j.currentLiters) || 0))
         setCapacity(Math.max(0, Number(j.capacityLiters) || 0))
         setPercent(Math.max(0, Math.min(100, Number(j.percent) || 0)))
+        globalThis.dispatchEvent(new CustomEvent('tank:update'))
+      }
+    } catch {}
+    setSaving(false)
+  }
+
+  const handleRefill = async () => {
+    if (!capacity) return
+    setSaving(true)
+    try {
+      const body = { setVolumeLiters: capacity }
+      const res = await fetch('/api/tank', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const j = await res.json()
+      if (j?.ok) {
+        setVolumeInput('')
+        setCurrent(Math.max(0, Number(j.currentLiters) || 0))
+        setCapacity(Math.max(0, Number(j.capacityLiters) || 0))
+        setPercent(Math.max(0, Math.min(100, Number(j.percent) || 0)))
+        globalThis.dispatchEvent(new CustomEvent('tank:update'))
       }
     } catch {}
     setSaving(false)
@@ -165,6 +193,16 @@ export function TankStatusCard({ initial, disableInitialFetch = false }: Readonl
             >
               {saving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
               {saving ? 'Actualizando...' : 'Actualizar Depósito'}
+            </Button>
+            
+            <Button 
+              onClick={handleRefill} 
+              disabled={saving || !capacity} 
+              variant="outline"
+              className="w-full border-white/10 hover:bg-white/10"
+            >
+              <Droplets className="w-4 h-4 mr-2 text-cyan-400" />
+              Marcar como Lleno ({Math.round(capacity)} L)
             </Button>
           </div>
         </div>

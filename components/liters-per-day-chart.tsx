@@ -13,6 +13,55 @@ const VALVE_COLORS = [
   { stroke: 'hsl(348 83% 47%)', fillId: 'fillV5', stopColor: 'hsl(348 83% 47%)' },
 ]
 
+async function fetchChartData(
+  selectedValves: number[],
+  timeRange: string,
+  customStart: string,
+  customEnd: string
+) {
+  let start: string, end: string
+  if (timeRange === 'custom') {
+    if (!customStart || !customEnd) return []
+    start = customStart
+    end = customEnd
+  } else {
+    const days = Number(timeRange)
+    const e = new Date()
+    const s = new Date(Date.now() - days * 24 * 3600 * 1000)
+    start = s.toISOString()
+    end = e.toISOString()
+  }
+
+  const url = new URL('/api/metrics/liters-per-day', globalThis.location.origin)
+  url.searchParams.set('start', start)
+  url.searchParams.set('end', end)
+  
+  const promises = selectedValves.map(async (valve) => {
+    const valveUrl = new URL(url.toString())
+    valveUrl.searchParams.set('valve', String(valve))
+    const res = await fetch(valveUrl.toString(), { cache: 'no-store' })
+    const json = await res.json()
+    return { valve, series: json?.ok ? json.series || [] : [] }
+  })
+  
+  const results = await Promise.all(promises)
+  
+  const merged = new Map<string, any>()
+  for (const { valve, series } of results) {
+    for (const item of series) {
+      const day = item.day
+      if (!merged.has(day)) {
+        merged.set(day, { day })
+      }
+      merged.get(day)![`v${valve}`] = item.liters || 0
+    }
+  }
+  
+  return Array.from(merged.values()).sort((a, b) => 
+    a.day.localeCompare(b.day)
+  )
+}
+
 export function LitersPerDayChart() {
   const { selectedValves, timeRange, customStart, customEnd } = useMetricsFilter()
   const [data, setData] = useState<Array<any>>([])
@@ -28,50 +77,7 @@ export function LitersPerDayChart() {
     setLoading(true)
     ;(async () => {
       try {
-        let start: string, end: string
-        if (timeRange !== 'custom') {
-          const days = Number(timeRange)
-          const e = new Date()
-          const s = new Date(Date.now() - days * 24 * 3600 * 1000)
-          start = s.toISOString()
-          end = e.toISOString()
-        } else {
-          if (!customStart || !customEnd) {
-            if (!cancelled) setLoading(false)
-            return
-          }
-          start = customStart
-          end = customEnd
-        }
-
-        const url = new URL('/api/metrics/liters-per-day', window.location.origin)
-        url.searchParams.set('start', start)
-        url.searchParams.set('end', end)
-        
-        const promises = selectedValves.map(async (valve) => {
-          const valveUrl = new URL(url.toString())
-          valveUrl.searchParams.set('valve', String(valve))
-          const res = await fetch(valveUrl.toString(), { cache: 'no-store' })
-          const json = await res.json()
-          return { valve, series: json?.ok ? json.series || [] : [] }
-        })
-        
-        const results = await Promise.all(promises)
-        
-        const merged = new Map<string, any>()
-        results.forEach(({ valve, series }) => {
-          series.forEach((item: any) => {
-            const day = item.day
-            if (!merged.has(day)) {
-              merged.set(day, { day })
-            }
-            merged.get(day)![`v${valve}`] = item.liters || 0
-          })
-        })
-        
-        const chartData = Array.from(merged.values()).sort((a, b) => 
-          new Date(a.day).getTime() - new Date(b.day).getTime()
-        )
+        const chartData = await fetchChartData(selectedValves, timeRange, customStart, customEnd)
         
         if (!cancelled) {
           setData(chartData)
@@ -118,6 +124,7 @@ export function LitersPerDayChart() {
                   tickLine={false} 
                   axisLine={false}
                   tickMargin={8}
+                  tickFormatter={(value) => new Date(value).toLocaleDateString()}
                 />
                 <YAxis 
                   tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} 

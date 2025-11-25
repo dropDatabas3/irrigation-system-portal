@@ -11,7 +11,7 @@ import { Droplets, Settings } from "lucide-react"
 
 type EventItem = {
   _id?: string
-  type: "result" | "config-ack" | string
+  type: string
   ts: number
   payload?: any
 }
@@ -27,6 +27,40 @@ type Row = {
   badgeVariant: "default" | "secondary" | "outline"
 }
 
+function mapResultEvent(it: EventItem, when: string): Row | null {
+  const v = Number(it?.payload?.valve)
+  const liters = Number(it?.payload?.deliveredLiters ?? it?.payload?.liters ?? 0)
+  const durMs = Number(it?.payload?.durationMs ?? 0)
+  
+  if (!Number.isFinite(v) || (liters <= 0 && durMs <= 0)) return null
+  
+  return {
+    id: String(it?._id ?? `${it.ts}-v${v}`),
+    timestamp: when,
+    valve: v > 0 ? `Válvula ${v}` : '—',
+    action: 'Riego',
+    duration: `${Math.round(durMs / 60000)} min`,
+    waterUsed: `${liters.toFixed(2)} L`,
+    actor: 'Sistema',
+    badgeVariant: 'default',
+  }
+}
+
+function mapConfigAckEvent(it: EventItem, when: string): Row {
+  const valvesArr: Array<any> = Array.isArray(it?.payload?.valves) ? it.payload.valves : []
+  const enabled = valvesArr.filter(v => v?.enabled).length
+  return {
+    id: String(it?._id ?? `cfg-${it.ts}`),
+    timestamp: when,
+    valve: enabled ? `${enabled} habilitadas` : '—',
+    action: 'Configuración aplicada',
+    duration: '—',
+    waterUsed: '—',
+    actor: 'Sistema',
+    badgeVariant: 'outline',
+  }
+}
+
 export function HistoryTable() {
   const [items, setItems] = useState<EventItem[]>([])
   const [loading, setLoading] = useState(false)
@@ -36,7 +70,7 @@ export function HistoryTable() {
 
   // Filters
   const [eventType, setEventType] = useState<'all' | 'result' | 'config-ack'>('all')
-  const [valveFilter, setValveFilter] = useState<number | 0>(0)
+  const [valveFilter, setValveFilter] = useState<number>(0)
   const [originFilter, setOriginFilter] = useState<'all' | 'Sistema' | 'Usuario'>('all')
   const [fromTs, setFromTs] = useState<string>('') // datetime-local
   const [toTs, setToTs] = useState<string>('')
@@ -90,34 +124,10 @@ export function HistoryTable() {
       const ts = Number(it?.ts)
       const when = Number.isFinite(ts) ? new Date(ts).toLocaleString() : '—'
       if (it?.type === 'result') {
-        const v = Number(it?.payload?.valve)
-        // Prioritize deliveredLiters, fallback to liters
-        const liters = Number(it?.payload?.deliveredLiters ?? it?.payload?.liters ?? 0)
-        const durMs = Number(it?.payload?.durationMs ?? 0)
-        if (!Number.isFinite(v) || liters <= 0 || durMs <= 0) continue
-        out.push({
-          id: String(it?._id ?? `${ts}-v${v}`),
-          timestamp: when,
-          valve: v > 0 ? `Válvula ${v}` : '—',
-          action: 'Riego',
-          duration: `${Math.round(durMs / 60000)} min`,
-          waterUsed: `${liters.toFixed(2)} L`,
-          actor: 'Sistema',
-          badgeVariant: 'default',
-        })
+        const row = mapResultEvent(it, when)
+        if (row) out.push(row)
       } else if (it?.type === 'config-ack') {
-        const valvesArr: Array<any> = Array.isArray(it?.payload?.valves) ? it.payload.valves : []
-        const enabled = valvesArr.filter(v => v?.enabled).length
-        out.push({
-          id: String(it?._id ?? `cfg-${ts}`),
-          timestamp: when,
-          valve: enabled ? `${enabled} habilitadas` : '—',
-          action: 'Configuración aplicada',
-          duration: '—',
-          waterUsed: '—',
-          actor: 'Sistema',
-          badgeVariant: 'outline',
-        })
+        out.push(mapConfigAckEvent(it, when))
       }
     }
     return out
@@ -135,9 +145,9 @@ export function HistoryTable() {
       <div className="p-6 pt-0 flex-1">
         {/* Filters - Responsive Grid */}
         <div className="space-y-3 mb-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Evento</label>
+              <span className="text-xs text-muted-foreground">Evento</span>
               <Select value={eventType} onValueChange={(v: any) => { setEventType(v); setPage(1) }}>
                 <SelectTrigger className="h-9 bg-background/50 border-white/10">
                   <SelectValue />
@@ -151,7 +161,7 @@ export function HistoryTable() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Válvula</label>
+              <span className="text-xs text-muted-foreground">Válvula</span>
               <Select value={String(valveFilter)} onValueChange={(v: string) => { setValveFilter(Number(v)); setPage(1) }}>
                 <SelectTrigger className="h-9 bg-background/50 border-white/10">
                   <SelectValue />
@@ -166,7 +176,7 @@ export function HistoryTable() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Origen</label>
+              <span className="text-xs text-muted-foreground">Origen</span>
               <Select value={originFilter} onValueChange={(v: any) => { setOriginFilter(v); setPage(1) }}>
                 <SelectTrigger className="h-9 bg-background/50 border-white/10">
                   <SelectValue />
@@ -180,7 +190,7 @@ export function HistoryTable() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Por página</label>
+              <span className="text-xs text-muted-foreground">Por página</span>
               <Select value={String(pageSize)} onValueChange={(v: string) => { setPageSize(Number(v)); setPage(1) }}>
                 <SelectTrigger className="h-9 bg-background/50 border-white/10">
                   <SelectValue />
@@ -194,9 +204,9 @@ export function HistoryTable() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Desde</label>
+              <span className="text-xs text-muted-foreground">Desde</span>
               <Input 
                 type="datetime-local" 
                 value={fromTs} 
@@ -206,7 +216,7 @@ export function HistoryTable() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Hasta</label>
+              <span className="text-xs text-muted-foreground">Hasta</span>
               <Input 
                 type="datetime-local" 
                 value={toTs} 
@@ -216,7 +226,7 @@ export function HistoryTable() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Buscar</label>
+              <span className="text-xs text-muted-foreground">Buscar</span>
               <Input 
                 placeholder="Texto libre" 
                 value={q} 
@@ -308,7 +318,7 @@ export function HistoryTable() {
         {/* Pagination */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 pt-4 border-t border-white/10">
           <div className="text-xs sm:text-sm text-muted-foreground">
-            Página {page} de {totalPages} • {total} evento{total !== 1 ? 's' : ''}
+            Página {page} de {totalPages} • {total} {total === 1 ? 'evento' : 'eventos'}
           </div>
           <div className="flex items-center gap-2">
             <Button 
